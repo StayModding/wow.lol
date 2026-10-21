@@ -62,7 +62,10 @@ final class WirelessPairing: NSObject, ObservableObject, NetServiceDelegate {
     /// identity this advertises is clearly this app's own; the identifier is a
     /// v3 UUID of the string, so a fresh name is also a fresh identity and the
     /// device does not confuse it with a stale "Pair with SideStore" row.
-    private static let hostName = "GoldenNugget"
+    ///
+    /// This is the row the user taps in Settings, so it is also the string the
+    /// setup guide quotes — one constant, both places.
+    private static let hostName = "wow.lol"
 
     /// The name the device lists in Settings → Privacy & Security → Developer
     /// Mode, where the user taps the pairable host to pair.  Exposed so the

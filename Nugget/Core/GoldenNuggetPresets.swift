@@ -28,10 +28,9 @@ enum GoldenNuggetPresets {
     static let lastAppliedName = "__LastApplied"
     static let rollbackName = "__Rollback"
 
-    /// `…/Documents/GoldenNugget/Presets`.
+    /// `…/Documents/wow.lol/Presets`.
     static var presetsDirectory: URL {
-        directoryOverride ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("GoldenNugget", isDirectory: true)
+        directoryOverride ?? AppPaths.supportDirectory
             .appendingPathComponent(directoryName, isDirectory: true)
     }
 

@@ -41,11 +41,9 @@ enum GoldenNuggetAutosave {
 
     // MARK: - Location
 
-    /// `…/Documents/GoldenNugget/Presets/AutoSave.json`.
+    /// `…/Documents/wow.lol/Presets/AutoSave.json`.
     static var fileURL: URL {
-        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        return documents
-            .appendingPathComponent("GoldenNugget", isDirectory: true)
+        AppPaths.supportDirectory
             .appendingPathComponent("Presets", isDirectory: true)
             .appendingPathComponent("\(presetName).json")
     }

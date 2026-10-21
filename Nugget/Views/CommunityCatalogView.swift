@@ -204,7 +204,7 @@ struct CommunityCatalogView: View {
             guard let image = CIImage(contentsOf: url), image.extent.width <= 16000, image.extent.height <= 16000,
                   let detector = CIDetector(ofType: CIDetectorTypeQRCode, context: nil, options: [CIDetectorAccuracy: CIDetectorAccuracyHigh]),
                   let value = detector.features(in: image).compactMap({ ($0 as? CIQRCodeFeature)?.messageString }).first(where: { $0.contains("GN1.") }) else {
-                throw CommunityError("No GoldenNugget QR code found in the image.")
+                throw CommunityError("No wow.lol QR code found in the image.")
             }
             _ = try PresetShareCode.decode(value)
             code = value

@@ -41,6 +41,12 @@ tweaks. Nothing about what the app *does* to a device changed.
 * The strip lives in `.safeAreaInset(edge: .top)` on the `NavigationStack`, so it
   survives a push inside a tab (PosterBoard → Download Wallpapers) and the page
   never scrolls under it.
+* A back control leads the brand bar on every tab except Home: it pops the page
+  the tab pushed, or returns to Home when there is nothing to pop. Home draws
+  no control, because there is nothing behind it.
+* The home page's device line and its connection verdict are one card now — the
+  device name, a coloured dot and "Supported!" / "Partially Supported" /
+  "Not connected" — instead of a card containing one centred word.
 * The home page hides the navigation bar (its brand bar replaces it); every other
   page keeps its own inline bar, because that is where its actions live
   (`CommunityCatalogView` refreshes, `FilesView` renames and moves).
@@ -57,11 +63,27 @@ tweaks. Nothing about what the app *does* to a device changed.
   device, and renaming them means editing every path in `scripts/build-ipa.sh`,
   the workflows and `Package.swift` — risk with no visual payoff. The Home
   Screen, the app switcher and the bundle ID all say wow.lol.
-* On-disk locations (`Documents/GoldenNugget/Presets`, `goldennugget.log`).
-  Renaming them would orphan presets, backups and logs that already exist.
-* The upstream credit in Settings → About, the "port of" note and the Credits
-  rows. This is an AGPL-3.0 work; the attribution stays, and the note now says
-  plainly that wow.lol is a rebrand of GoldenNugget.
+* The community catalog's URLs (`goldennugget-team.github.io`). That is a live
+  service this feature reads, not a label; renaming the host would disable the
+  catalog rather than rebrand it.
+* The Swift type names. `GoldenNuggetEngine`, `GoldenNuggetPresets`,
+  `GoldenNuggetError` and the module itself are compiled identity, and the app
+  has 100k symbols that reference them.
+
+### What the rebrand did rename
+
+Every user-visible mention is gone: the About credit and note, the `credits`
+row, the log file (`wow.lol.log`, and the two share rows that name it), the
+error strings, the preset format tag, and the wireless-pairing host name the
+setup guide tells the user to tap ("Pair with wow.lol"). The private folder
+moved from `Documents/GoldenNugget/` to `Documents/wow.lol/`, with a one-time
+move at launch so existing presets and the apply history keep working.
+
+Exports are written with a new `format` tag but the old one is still accepted
+on import, so desktop-made presets keep loading.
+
+The AGPL-3.0 licence and the copyright headers in the source are untouched:
+that attribution is the licence's condition, not a string in the UI.
 
 ---
 

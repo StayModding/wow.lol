@@ -306,7 +306,7 @@ struct TweaksView: View {
     /// The autosave line: where the file lives and that the import row is the
     /// manual path for a preset that came from somewhere else.
     private var autosaveNote: String {
-        let path = "Documents/GoldenNugget/Presets/\(GoldenNuggetAutosave.presetName).json"
+        let path = "Documents/wow.lol/Presets/\(GoldenNuggetAutosave.presetName).json"
         let state = autosaveSaved ? "saved" : "nothing saved yet"
         return "Your selection is saved to \(path) on every change and restored on "
             + "launch, exactly as the desktop app's AutoSave preset does (\(state)). "

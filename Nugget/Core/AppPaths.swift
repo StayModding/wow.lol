@@ -8,8 +8,35 @@ import Foundation
 /// "which file is actually being read?" a grep exercise and left two spellings
 /// of the same directory (`URL.documents` and the inline form) side by side.
 enum AppPaths {
-    /// `<Documents>/goldennugget.log` — the app-side log sink.
-    static let appLog = URL.documents.appendingPathComponent("goldennugget.log")
+    /// `<Documents>/wow.lol.log` — the app-side log sink.
+    static let appLog = URL.documents.appendingPathComponent("wow.lol.log")
+
+    /// `<Documents>/wow.lol/` — the one private directory this app files its own
+    /// state in (presets, autosave, the apply history).
+    ///
+    /// A single spelling on purpose: it is the path the Tweaks page prints to the
+    /// user and the path the store actually writes, and the two drift apart the
+    /// moment they are written out twice.
+    static let supportDirectory = URL.documents.appendingPathComponent("wow.lol", isDirectory: true)
+
+    /// The name this directory had before the rebrand.
+    private static let legacySupportDirectory = URL.documents
+        .appendingPathComponent("GoldenNugget", isDirectory: true)
+
+    /// Moves a pre-rename `<Documents>/GoldenNugget/` into place, once, at launch.
+    ///
+    /// Called before anything reads a preset or the apply history: those are read
+    /// by the views that appear a beat later, and a migration that ran after them
+    /// would show an empty preset list on the one launch that mattered. It is a
+    /// **move**, not a copy, so the user's presets and their history keep working;
+    /// when both directories exist (a reinstall on top of an old build that
+    /// already ran once) it leaves the old one alone rather than deleting data.
+    static func migrateLegacySupportDirectory() {
+        let manager = FileManager.default
+        guard manager.fileExists(atPath: legacySupportDirectory.path),
+              !manager.fileExists(atPath: supportDirectory.path) else { return }
+        try? manager.moveItem(at: legacySupportDirectory, to: supportDirectory)
+    }
 
     /// `<Documents>/minimuxer.log` — the Rust `tracing` sink installed by
     /// `enableRustFileLogging()`.

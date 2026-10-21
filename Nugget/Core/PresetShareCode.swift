@@ -8,7 +8,7 @@ enum PresetShareCode {
     static let limit = 256 * 1024
 
     static func decode(_ text: String) throws -> [String: Any] {
-        guard let start = text.range(of: "GN1.") else { throw CommunityError("No GoldenNugget share code found.") }
+        guard let start = text.range(of: "GN1.") else { throw CommunityError("No wow.lol share code found.") }
         let alphabet = Set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_")
         let body = text[start.upperBound...].prefix { alphabet.contains($0) || $0.isWhitespace }
             .filter { !$0.isWhitespace }

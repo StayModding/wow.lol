@@ -4,7 +4,17 @@ import ZIPFoundation
 /// Desktop .gnpreset ZIP: a manifest plus exactly the declared, hashed assets.
 /// Each import owns an isolated directory; importing never activates assets.
 enum PortablePreset {
-    static let format = "GoldenNugget portable preset"
+    static let format = "wow.lol portable preset"
+
+    /// Manifests this app still imports.  The first name is what the desktop
+    /// tool wrote, and refusing it would lock a user out of their own presets
+    /// over a string that never claimed to be a version.
+    private static let legacyFormats = ["GoldenNugget portable preset"]
+
+    static func acceptsManifest(_ value: String?) -> Bool {
+        guard let value else { return false }
+        return value == format || legacyFormats.contains(value)
+    }
     static func export(_ document: [String: Any], to destination: URL) throws {
         var document = document
         var tweaks = document["tweaks"] as? [String: [String: Any]] ?? [:]
@@ -85,7 +95,7 @@ enum PortablePreset {
             return bytes
         }
         guard let manifest = try JSONSerialization.jsonObject(with: read("manifest.json", limit: 4 * 1024 * 1024)) as? [String: Any],
-              manifest["format"] as? String == format, manifest["version"] as? Int == 1,
+              acceptsManifest(manifest["format"] as? String), manifest["version"] as? Int == 1,
               var document = manifest["preset"] as? [String: Any], GoldenNuggetPresets.isValidImport(document),
               let assets = manifest["assets"] as? [String: [String: Any]],
               Set(entries.keys) == Set(assets.keys).union(["manifest.json"]) else {

@@ -155,7 +155,6 @@ struct GoldenNuggetView: View {
     var body: some View {
         List {
             header
-            connectionLine
             applyCard
             clearCard
             if !status.isEmpty { processStatus }
@@ -269,14 +268,29 @@ struct GoldenNuggetView: View {
     private var header: some View {
         Section {
             HStack(spacing: 14) {
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 5) {
                     Text(identity.describe)
                         .font(.headline)
                         .lineLimit(2)
-                    Text(paired ? "Pairing file loaded" : "No pairing file yet")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                    // The connection verdict lives here rather than in a card of
+                    // its own below: it is one word about the thing named two
+                    // lines above it, and as a full-width card it read like a
+                    // section the user was expected to open.
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(connectionState.tone.nativeColor)
+                            .frame(width: 7, height: 7)
+                        Text(connectionState.text)
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(connectionState.tone.nativeColor)
+                        Text("·")
+                            .font(.footnote)
+                            .foregroundStyle(.tertiary)
+                        Text(paired ? "paired" : "no pairing file")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    .lineLimit(1)
                 }
                 Spacer(minLength: 0)
                 Button {
@@ -298,16 +312,7 @@ struct GoldenNuggetView: View {
     /// `home.py: update_status` — the same three states in the same colours:
     /// green "Supported!", amber "Partially Supported" when a pairing file is
     /// loaded but lockdown has not said what the device is, plain
-    /// "Not connected" otherwise.
-    private var connectionLine: some View {
-        Section {
-            Text(connectionState.text)
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(connectionState.tone.nativeColor)
-                .frame(maxWidth: .infinity, alignment: .center)
-        }
-    }
-
+    /// "Not connected" otherwise.  Drawn as the dot and the word in `header`.
     private var connectionState: (text: String, tone: GoldenTone) {
         guard paired else { return ("Not connected", .secondary) }
         guard !identity.version.isEmpty else { return ("Partially Supported", .warning) }
@@ -667,7 +672,7 @@ struct GoldenNuggetView: View {
             // half of the evidence: the Rust log shows what the protocol did,
             // this one shows what the host decided (filter keeps, commit
             // accounting, staging leftovers).
-            shareRow(title: "Share goldennugget.log (\(GoldenNuggetEngine.appLogSize() / 1024) KB)",
+            shareRow(title: "Share wow.lol.log (\(GoldenNuggetEngine.appLogSize() / 1024) KB)",
                      systemImage: "doc.plaintext",
                      url: GoldenNuggetEngine.appLogURL,
                      available: GoldenNuggetEngine.appLogSize() > 0)

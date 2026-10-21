@@ -4,6 +4,11 @@ import Minimuxer
 @main
 struct GoldenNuggetApp: App {
     init() {
+        // First statement of the launch: the on-disk state (presets, autosave, the
+        // apply history) has to be in its new home before anything reads it, and
+        // everything that reads it is reached from the UI a beat later.
+        AppPaths.migrateLegacySupportDirectory()
+
         // Development mode's logging switch, applied at launch rather than when the
         // settings page is opened: it governs the protocol half of every run, and a
         // stored preference that only took effect once the user visited a page would

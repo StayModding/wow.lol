@@ -88,10 +88,9 @@ enum ApplyHistory {
     }
 
     /// `_path` (`apply_history.py:12`): the file this app owns inside
-    /// `<Documents>/GoldenNugget/History/`.
+    /// `<Documents>/wow.lol/History/`.
     static var fileURL: URL {
-        fileURLOverride ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("GoldenNugget", isDirectory: true)
+        fileURLOverride ?? AppPaths.supportDirectory
             .appendingPathComponent("History", isDirectory: true)
             .appendingPathComponent("operations.json")
     }

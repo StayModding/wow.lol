@@ -102,19 +102,9 @@ struct SettingsView: View {
             .padding(.vertical, 8)
             .listRowBackground(Color.clear)
 
-            // A credit, not a setting: centred and on its own, so it does not
-            // read as a row.
-            Text("Made with ❤️ by\nGoldenNugget Development Team")
-                .font(.callout)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
-                .listRowBackground(Color.clear)
-
-            NativeNote("wow.lol is a rebrand of GoldenNugget, whose desktop app is "
-                + "the original this iOS app is a port of — same protocols, same engine, "
-                + "different name and shell. It runs them over its own Rust and Swift "
-                + "stack instead of driving pymobiledevice3, and speaks to iOS 26 and "
-                + "27 rather than only to tethered devices.")
+            NativeNote("wow.lol speaks to your device over its own Rust and Swift "
+                + "stack — no desktop tool, no pymobiledevice3 — and works with iOS 26 "
+                + "and 27 rather than only with tethered devices.")
         }
     }
 
@@ -126,8 +116,6 @@ struct SettingsView: View {
     /// ships as a dynamic framework in the IPA).
     private var creditsSection: some View {
         Section("Credits") {
-            creditRow("GoldenNugget", "Desktop app · this is a port of it",
-                      systemImage: "desktopcomputer")
             creditRow("idevice", "Rust device and backup stack",
                       systemImage: "shippingbox")
             creditRow("libimobiledevice", "C protocol core",
@@ -179,7 +167,7 @@ struct SettingsView: View {
         Section("Logs") {
             // The two halves of a report's evidence: this one is what the host
             // decided, the other is what the protocol did.
-            shareRow(title: "goldennugget.log",
+            shareRow(title: "wow.lol.log",
                      size: logs.appKB,
                      systemImage: "doc.plaintext",
                      url: GoldenNuggetEngine.appLogURL,

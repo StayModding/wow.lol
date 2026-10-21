@@ -274,7 +274,8 @@ struct RootView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             WowTabBar(selection: selection,
                       destinations: tabs,
-                      select: select)
+                      select: select,
+                      onBack: backAction)
         }
     }
 
@@ -301,6 +302,18 @@ struct RootView: View {
                     || !AirliftAvailability.isHidden(deviceVersion: device.current.version,
                                                      buildVersion: device.current.buildVersion))
         }
+    }
+
+    /// What the back control does: undo the thing that got you here.
+    ///
+    /// Inside a tab it pops the page that tab pushed (PosterBoard → Download
+    /// Wallpapers); on any other tab it goes back to Home.  On Home there is
+    /// nothing behind the page, so the control is not drawn at all and the bar
+    /// keeps its full width for the wordmark.
+    private var backAction: (() -> Void)? {
+        if !path.isEmpty { return { if !path.isEmpty { path.removeLast() } } }
+        guard selection != .home else { return nil }
+        return { select(.home) }
     }
 
     private func select(_ destination: AppDestination) {
@@ -358,6 +371,8 @@ private struct WowTabBar: View {
     let selection: AppDestination
     let destinations: [AppDestination]
     let select: (AppDestination) -> Void
+    /// Absent on Home, where there is nothing behind the page.
+    let onBack: (() -> Void)?
 
     @ObservedObject private var device = DeviceIdentityMonitor.shared
 
@@ -375,10 +390,24 @@ private struct WowTabBar: View {
                 .fill(Color.primary.opacity(0.07))
                 .frame(height: 0.5)
         }
+        .sensoryFeedback(.selection, trigger: selection)
     }
 
     private var brandBar: some View {
         HStack(spacing: 9) {
+            if let onBack {
+                Button(action: onBack) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(.primary)
+                        .frame(width: 30, height: 30)
+                        .background(Circle().fill(Color.primary.opacity(0.08)))
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Back")
+                .transition(.opacity.combined(with: .scale(scale: 0.85)))
+            }
             NativeLogo(size: 26)
             Text("wow.lol")
                 .font(.system(size: 19, weight: .bold, design: .rounded))
@@ -397,6 +426,7 @@ private struct WowTabBar: View {
             }
         }
         .padding(.horizontal, 16)
+        .animation(.easeInOut(duration: 0.18), value: onBack != nil)
     }
 
     private var strip: some View {
@@ -441,16 +471,18 @@ private struct WowTabBar: View {
         }
         .foregroundStyle(active ? Color.white : Color.secondary)
         .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.vertical, 9)
+        .frame(minHeight: 34)
         .background {
             Capsule(style: .continuous)
                 .fill(active
                       ? AnyShapeStyle(WowBrand.selectedTab)
-                      : AnyShapeStyle(Color.primary.opacity(0.06)))
+                      : AnyShapeStyle(Color.primary.opacity(0.055)))
         }
         .overlay {
             Capsule(style: .continuous)
-                .strokeBorder(Color.white.opacity(active ? 0.16 : 0), lineWidth: 0.8)
+                .strokeBorder(active ? Color.white.opacity(0.18) : Color.primary.opacity(0.07),
+                              lineWidth: 0.8)
         }
         .shadow(color: active ? WowBrand.violet.opacity(0.30) : .clear, radius: 6, y: 3)
         .contentShape(Capsule(style: .continuous))
