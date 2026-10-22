@@ -1,7 +1,9 @@
+import Combine
 import SwiftUI
 import UIKit
 
-/// The tool pages: Originals, History, Diagnostics, Log, Pairing, About.
+/// The tool pages: History, Diagnostics, Log, Pairing, Tunnel, Skip Setup,
+/// Conflicts.
 ///
 /// Each one is a native `List` of system sections.  The app's own chrome is the
 /// dock along the bottom and nothing else, so a tool page should look like a
@@ -12,36 +14,6 @@ import UIKit
 /// of its own.  Home was carrying the diagnostics card, the pairing card and a
 /// log preview, which made the one page with the Apply button on it also the
 /// page you had to scroll to reach everything else.
-
-// MARK: - Originals
-
-struct OriginalsView: View {
-    @Binding var posterBoardSelection: PosterBoardSelection
-    /// Jump to PosterBoard, so "choose a wallpaper" ends with the Apply.
-    let openPosterBoard: () -> Void
-
-    var body: some View {
-        List {
-            Section {
-                NativeNote("Poster art drawn for wow.lol — no photographs, no likenesses. "
-                    + "Gyro cuts are drawn on two planes, so the art moves against itself when the phone "
-                    + "tilts; animated cuts loop; live cuts breathe. Choosing one here only sets the video "
-                    + "choice — PosterBoard's Apply is what puts it on the Lock Screen.")
-            }
-            Section {
-                OriginalsShelf(posterBoardSelection: $posterBoardSelection)
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-            }
-            Section {
-                Button("Open PosterBoard", action: openPosterBoard)
-            }
-        }
-        .listStyle(.insetGrouped)
-        .navigationTitle("Originals")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-}
 
 /// The artist shelf, with no page of its own.
 ///
@@ -225,6 +197,16 @@ struct HistoryView: View {
         }
         .listStyle(.insetGrouped)
         .navigationTitle("History")
+        // The run log used to be its own tab beside this one; it is the detail
+        // view of a record, so it is a push from here now.
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink(value: AppDestination.log) {
+                    Image(systemName: "text.alignleft")
+                }
+                .accessibilityLabel("Run log")
+            }
+        }
         .navigationBarTitleDisplayMode(.inline)
         .task { records = ApplyHistory.load() }
     }
@@ -425,55 +407,231 @@ struct PairingView: View {
     }
 }
 
-// MARK: - About
+// MARK: - Skip Setup
 
-struct AboutView: View {
-    @ObservedObject private var device = DeviceIdentityMonitor.shared
+/// The switch that decides whether an apply writes the setup-skipping pair, and
+/// what that pair actually says.
+struct SkipSetupView: View {
+    @ObservedObject private var settings = SkipSetupSettings.shared
+    @State private var showAllPanes = false
 
-    private var info: [String: Any] { Bundle.main.infoDictionary ?? [:] }
-    private var name: String { info["CFBundleDisplayName"] as? String ?? "wowser" }
-    private var short: String { info["CFBundleShortVersionString"] as? String ?? "—" }
-    private var build: String { info["CFBundleVersion"] as? String ?? "—" }
-    private var identifier: String { info["CFBundleIdentifier"] as? String ?? "—" }
+    private var isOn: Binding<Bool> {
+        Binding(get: { settings.skipSetupEnabled },
+                set: { settings.setSkipSetup($0) })
+    }
 
     var body: some View {
         List {
             Section {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(name)
-                        .font(.system(size: 26, weight: .bold, design: .rounded))
-                    Text("Version \(short) (\(build))")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.vertical, 6)
+                Toggle("Skip Setup on every apply", isOn: isOn)
+                Text(settings.skipSetupEnabled
+                     ? "On: every apply adds the two files ahead of the tweaks."
+                     : "Off: an apply carries only the tweaks.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } header: {
+                Text("Setup")
+            } footer: {
+                Text("On by default, as upstream ships it. The files only ride an apply that "
+                    + "restores through a backup — the AirLift path returns before the payload "
+                    + "stage, so a wallpapers-only AirLift run delivers nothing either way.")
             }
 
-            Section("Device") {
-                LabeledContent("Model", value: device.current.productType.isEmpty
-                               ? "unknown" : device.current.productType)
-                LabeledContent("iOS", value: device.current.version.isEmpty
-                               ? "unknown" : device.current.version)
-            }
-
-            Section("App") {
-                LabeledContent("Bundle", value: identifier)
-                LabeledContent("Sections", value: String(AppDestination.allCases.count))
-                LabeledContent("Originals",
-                               value: "\(Originals.clips.count) wallpapers · \(Originals.presets.count) presets")
+            Section("What it writes") {
+                row("1", "CloudConfigurationDetails.plist",
+                    "SysSharedContainerDomain · Library/ConfigurationProfiles — "
+                    + "\(SkipSetup.panes.count) panes marked skipped.")
+                row("2", "com.apple.purplebuddy.plist",
+                    "ManagedPreferencesDomain/mobile — setup marked done.")
             }
 
             Section {
-                NativeNote("wowser is a rebrand and rebuild of GoldenNugget Mobile, which is AGPL-3.0 — "
-                    + "the source for this build is public, and the original team's work is credited there "
-                    + "rather than on this screen.")
-                if let url = URL(string: "https://github.com/StayModding/wow.lol") {
-                    Link("Source and build notes", destination: url)
+                DisclosureGroup(isExpanded: $showAllPanes) {
+                    ForEach(showAllPanes
+                            ? SkipSetupCatalog.panes
+                            : Array(SkipSetupCatalog.panes.prefix(12)),
+                            id: \.self) { pane in
+                        Text(pane).font(.system(size: 14, design: .monospaced))
+                    }
+                } label: {
+                    Label("\(SkipSetupCatalog.panes.count) setup panes", systemImage: "list.bullet")
                 }
+            } footer: {
+                Text("The union of the reference's iOS 26 and 27 lists: a pane a given release "
+                    + "does not know is a no-op there.")
+            }
+
+            Section {
+                NativeNote("Two deliberate divergences, both logged on every run: the device's "
+                    + "existing cloud configuration is not merged in, and no supervisor "
+                    + "certificate is generated. Nothing here supervises a device.")
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle("About")
+        .navigationTitle("Skip Setup")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func row(_ index: String, _ name: String, _ detail: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Text(index)
+                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                .foregroundStyle(.secondary)
+                .frame(width: 16, alignment: .leading)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name).font(.system(size: 14, weight: .semibold, design: .monospaced))
+                Text(detail)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+}
+
+// MARK: - Conflicts
+
+/// Tweak pairs that write the same plist key in the same file — the port of the
+/// reference's `current_conflicts`.
+///
+/// Offline analysis, not a safety audit: it compares the enabled writers this
+/// device can run, in apply order, and reports where the second one wins.
+struct ConflictsView: View {
+    @Binding var selection: TweakSelection
+    @ObservedObject private var device = DeviceIdentityMonitor.shared
+    @State private var conflicts: [TweakConflict] = []
+
+    var body: some View {
+        List {
+            Section {
+                if conflicts.isEmpty {
+                    Text(enabledCount == 0
+                         ? "Nothing is switched on yet, so there is nothing to contradict."
+                         : "No contradictions among the \(enabledCount) enabled tweak(s) this "
+                           + "device can run.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(conflicts) { conflict in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(conflict.description)
+                                .font(.system(size: 14, weight: .semibold))
+                            Text("Written in apply order: the second tweak's value is the one "
+                                + "the device keeps.")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+            } header: {
+                Text(conflicts.isEmpty ? "Result" : "\(conflicts.count) conflict(s)")
+            } footer: {
+                Text("Only plist writers are compared — a wallpaper, a template or a daemon "
+                    + "switch is never invoked by this check, which is what the reference does "
+                    + "too. Turning a tweak off on the Tweaks page is what removes a conflict.")
+            }
+
+            Section {
+                NativeNote("Nothing here is written to the device. This page reads the current "
+                    + "selection and the generated catalog, and the check runs again every "
+                    + "time it is opened.")
+            }
+        }
+        .listStyle(.insetGrouped)
+        .navigationTitle("Conflicts")
+        .navigationBarTitleDisplayMode(.inline)
+        .task { refresh() }
+        .onAppear { refresh() }
+        .onChange(of: device.current.version) { _, _ in refresh() }
+    }
+
+    private var enabledCount: Int {
+        TweakCatalog.allWithDaemons.filter { selection.isOn($0) }.count
+    }
+
+    private func refresh() {
+        conflicts = TweakConflicts.find(in: selection,
+                                        specs: TweakCatalog.allWithDaemons,
+                                        deviceVersion: device.current.version,
+                                        isIPhone: device.current.isIPhone,
+                                        deviceModel: device.current.productType)
+    }
+}
+
+// MARK: - Tunnel
+
+/// What the transport is doing, live.
+///
+/// The numbers are `WireCensus`'s — the same sample the stall guard makes its
+/// decisions from.  Until this page existed they surfaced only as one line inside
+/// the diagnostics report, and a stalled apply looks exactly like a device that
+/// has not spoken yet: a progress bar that is not moving.
+struct TunnelView: View {
+    @ObservedObject private var wireless = WirelessPairing.shared
+    @ObservedObject private var device = DeviceIdentityMonitor.shared
+    @State private var sample = RustWireSample()
+    @State private var updatedAt = Date()
+
+    private let tick = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        List {
+            Section {
+                LabeledContent("DeviceLink messages", value: "\(sample.dlMessages)")
+                LabeledContent("Out-of-order segments", value: "\(sample.outOfOrder)")
+                LabeledContent("Peer retransmits", value: "\(sample.retransmits)")
+                LabeledContent("Duplicate ACKs sent", value: "\(sample.duplicateAcks)")
+                LabeledContent("Segments refused", value: "\(sample.heldDropped)")
+                if let gap = sample.gap {
+                    LabeledContent("Stuck in the gap", value: "\(gap / 1024) KB")
+                }
+            } header: {
+                Text("Transport")
+            } footer: {
+                Text(WireCensus.healthLine())
+                    .font(.system(size: 12, design: .monospaced))
+            }
+
+            Section("Reordering") {
+                LabeledContent("Device at byte", value: sample.seq.map(String.init) ?? "—")
+                LabeledContent("Tunnel delivers up to", value: sample.expected.map(String.init) ?? "—")
+                Text(sample.outOfOrder == 0
+                     ? "No datagram has been lost: whatever is slow, it is not the transport."
+                     : (sample.retransmits > 0
+                        ? "A hole opened and the peer is re-sending it — this recovers by waiting."
+                        : "A hole opened and the peer has re-sent nothing, so waiting will not close it."))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("Connection") {
+                LabeledContent("Device", value: device.current.describe)
+                LabeledContent("Wireless service", value: String(describing: wireless.phase))
+                if let name = wireless.serviceName {
+                    LabeledContent("Host name", value: name)
+                }
+                if let port = wireless.port {
+                    LabeledContent("Port", value: String(port))
+                }
+            }
+
+            Section {
+                NativeNote("The counters cover the current run and reset when the Rust log starts "
+                    + "a new one. Zero DeviceLink messages with zero out-of-order segments is a "
+                    + "device that has not answered yet — check the pairing record before the "
+                    + "transport.")
+                Text("Updated \(updatedAt.formatted(date: .omitted, time: .standard))")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .listStyle(.insetGrouped)
+        .navigationTitle("Tunnel")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear { sample = WireCensus.totals() }
+        .onReceive(tick) { now in
+            sample = WireCensus.totals()
+            updatedAt = now
+        }
     }
 }

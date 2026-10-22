@@ -13,7 +13,7 @@ import UIKit
 /// at.
 ///
 /// The strip is a scrolling row rather than a fixed set of five, because the app
-/// really does have thirteen sections and a `TabView` would have to hide eight of
+/// really does have nineteen sections and a `TabView` would have to hide most of
 /// them behind a "More" list — the same dropdown this change is removing, moved
 /// to the bottom of the screen.  A horizontal scroll keeps every tab a first-class
 /// tab; the row follows the selection so the active one is never off screen.
@@ -28,13 +28,14 @@ import UIKit
 enum AppDestination: String, CaseIterable, Identifiable, Hashable {
     case home
     case tweaks
+    case conflicts
     case presets
-    case originals
     case community
     case posterBoard
-    case templates
     case wallpaperDownloads
+    case templates
     case statusBar
+    case skipSetup
     case wallet
     case passcode
     case daemons
@@ -42,9 +43,9 @@ enum AppDestination: String, CaseIterable, Identifiable, Hashable {
     case files
     case history
     case diagnostics
+    case tunnel
     case log
     case pairing
-    case about
     case settings
 
     var id: String { rawValue }
@@ -62,7 +63,12 @@ enum AppDestination: String, CaseIterable, Identifiable, Hashable {
     ///
     /// The case itself stays — a destination has to exist to be pushed — only its
     /// tab goes.
-    var showsAsTab: Bool { self != .wallpaperDownloads }
+    ///
+    /// `log` is the second: a run log is what the **History** page opens, not a
+    /// section beside it, and the two sitting next to each other in the dock read
+    /// as two answers to the same question.  It is pushed from History's title
+    /// bar and from Settings → Logs.
+    var showsAsTab: Bool { self != .wallpaperDownloads && self != .log }
 
     /// The page title, used by the navigation bar a **pushed** page draws above
     /// itself (and as the back button's label from one).
@@ -70,13 +76,14 @@ enum AppDestination: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .home: "wow.lol"
         case .tweaks: "Tweaks"
+        case .conflicts: "Conflicts"
         case .presets: "Presets"
-        case .originals: "Originals"
         case .community: "Community Catalog"
         case .posterBoard: "PosterBoard"
-        case .templates: "Templates"
         case .wallpaperDownloads: "Download Wallpapers"
+        case .templates: "Templates"
         case .statusBar: "Status Bar"
+        case .skipSetup: "Skip Setup"
         case .wallet: "Wallet"
         case .passcode: "Passcode"
         case .daemons: "Daemons"
@@ -84,9 +91,9 @@ enum AppDestination: String, CaseIterable, Identifiable, Hashable {
         case .files: "Files"
         case .history: "History"
         case .diagnostics: "Diagnostics"
+        case .tunnel: "Tunnel"
         case .log: "Run Log"
         case .pairing: "Pairing"
-        case .about: "About"
         case .settings: "Settings"
         }
     }
@@ -97,13 +104,14 @@ enum AppDestination: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .home: "Home"
         case .tweaks: "Tweaks"
+        case .conflicts: "Clash"
         case .presets: "Presets"
-        case .originals: "Originals"
         case .community: "Community"
         case .posterBoard: "PosterBoard"
-        case .templates: "Templates"
         case .wallpaperDownloads: "Download"
+        case .templates: "Templates"
         case .statusBar: "Status"
+        case .skipSetup: "Skip"
         case .wallet: "Wallet"
         case .passcode: "Passcode"
         case .daemons: "Daemons"
@@ -111,9 +119,9 @@ enum AppDestination: String, CaseIterable, Identifiable, Hashable {
         case .files: "Files"
         case .history: "History"
         case .diagnostics: "Diag"
+        case .tunnel: "Tunnel"
         case .log: "Log"
         case .pairing: "Pairing"
-        case .about: "About"
         case .settings: "Settings"
         }
     }
@@ -122,13 +130,14 @@ enum AppDestination: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .home: "house"
         case .tweaks: "slider.horizontal.3"
+        case .conflicts: "exclamationmark.triangle"
         case .presets: "tray.2"
-        case .originals: "sparkles"
         case .community: "square.grid.2x2"
         case .posterBoard: "photo.artframe"
         case .templates: "slider.horizontal.below.rectangle"
         case .wallpaperDownloads: "square.and.arrow.down"
         case .statusBar: "antenna.radiowaves.left.and.right"
+        case .skipSetup: "forward.end"
         case .wallet: "creditcard.fill"
         case .passcode: "lock.rectangle"
         case .daemons: "server.rack"
@@ -136,9 +145,9 @@ enum AppDestination: String, CaseIterable, Identifiable, Hashable {
         case .files: "folder"
         case .history: "clock.arrow.circlepath"
         case .diagnostics: "stethoscope"
+        case .tunnel: "point.3.connected.trianglepath.dotted"
         case .log: "text.alignleft"
         case .pairing: "dot.radiowaves.left.and.right"
-        case .about: "info.circle"
         case .settings: "gearshape"
         }
     }
@@ -392,11 +401,10 @@ struct RootView: View {
             EmptyView()
         case .tweaks:
             TweaksView(selection: $tweakSelection)
+        case .conflicts:
+            ConflictsView(selection: $tweakSelection)
         case .presets:
             PresetManagerView(selection: $tweakSelection)
-        case .originals:
-            OriginalsView(posterBoardSelection: $posterBoardSelection,
-                          openPosterBoard: { select(.posterBoard) })
         case .community:
             CommunityCatalogView()
         case .posterBoard:
@@ -407,6 +415,8 @@ struct RootView: View {
             WallpaperDownloadsView(selection: $posterBoardSelection)
         case .statusBar:
             StatusBarView(selection: $statusBarSelection)
+        case .skipSetup:
+            SkipSetupView()
         case .wallet:
             WalletView()
         case .passcode:
@@ -421,12 +431,12 @@ struct RootView: View {
             HistoryView()
         case .diagnostics:
             DiagnosticsView()
+        case .tunnel:
+            TunnelView()
         case .log:
             LogView()
         case .pairing:
             PairingView()
-        case .about:
-            AboutView()
         case .settings:
             SettingsView()
         }
@@ -435,11 +445,13 @@ struct RootView: View {
 
 /// The tabs, along the bottom edge.
 ///
-/// A pill of symbols rather than a stock `TabView`: this app has thirteen
-/// sections and a stock bar would put eight of them behind "More" — the
-/// dropdown the shell exists to remove, moved to the bottom of the screen.  The
-/// row scrolls, keeps the active tab centred, and every section stays a
-/// first-class tab.
+/// A strip of symbols rather than a stock `TabView`: this app has nineteen
+/// sections and a stock bar would put most of them behind "More" — the dropdown
+/// the shell exists to remove, moved to the bottom of the screen.  The row
+/// scrolls, keeps the active tab centred, and every section stays a first-class
+/// tab.  It is drawn at 42 pt: icon 15, label 9, and a 34 pt chip whose hit area
+/// is widened to 44 by `contentShape`, so the chrome costs a page as little of
+/// the screen as a tab bar is allowed to.
 ///
 /// The look is the system's: one sheet of material, no per-tab fill, no shadows
 /// under the chips.  The active tab is told apart by tint and weight, the way a
@@ -453,7 +465,7 @@ private struct WowTabDock: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView(.horizontal) {
-                HStack(spacing: 2) {
+                HStack(spacing: 1) {
                     ForEach(destinations) { destination in
                         Button { select(destination) } label: {
                             chip(destination)
@@ -464,8 +476,8 @@ private struct WowTabDock: View {
                         .accessibilityAddTraits(destination == selection ? .isSelected : [])
                     }
                 }
-                .padding(.horizontal, 6)
-                .padding(.vertical, 6)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 4)
             }
             .scrollIndicators(.hidden)
             .background { plate }
@@ -502,26 +514,34 @@ private struct WowTabDock: View {
             .ignoresSafeArea(edges: .bottom)
     }
 
+    /// A compact chip.
+    ///
+    /// The first dock spent 64 pt of every page on chrome — an icon *and* a label
+    /// at reading size, padded like a toolbar button.  This is the same
+    /// information at the size a tab bar is allowed to take: 42 pt including the
+    /// bar's own padding, so a page keeps the screen it is drawing on.  The hit
+    /// area is kept at 44 pt by `contentShape` rather than by the drawing.
     private func chip(_ destination: AppDestination) -> some View {
         let active = destination == selection
-        return VStack(spacing: 3) {
+        return VStack(spacing: 2) {
             Image(systemName: destination.systemImage)
-                .font(.system(size: 17, weight: active ? .semibold : .regular))
+                .font(.system(size: 15, weight: active ? .semibold : .regular))
                 .symbolVariant(active ? .fill : .none)
-                .frame(height: 20)
+                .frame(height: 17)
             Text(destination.tabTitle)
-                .font(.system(size: 10, weight: active ? .semibold : .medium))
+                .font(.system(size: 9, weight: active ? .semibold : .medium))
                 .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
         .foregroundStyle(active ? Color.accentColor : Color.secondary)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 5)
-        .frame(minWidth: 58)
+        .padding(.horizontal, 9)
+        .padding(.vertical, 2)
+        .frame(minWidth: 46, minHeight: 34)
         .background {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(active ? Color.accentColor.opacity(0.12) : .clear)
+            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .fill(active ? Color.accentColor.opacity(0.14) : .clear)
         }
-        .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
         .animation(.easeOut(duration: 0.16), value: active)
     }
 }

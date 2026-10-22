@@ -23,7 +23,6 @@ struct SettingsView: View {
 
     /// Skip Setup's switch. Observed rather than mirrored with a second
     /// `@AppStorage` on the same key: the store is what the engine reads.
-    @ObservedObject private var skipSetup = SkipSetupSettings.shared
 
     /// Read through `engine` rather than recomputed in the body, because a log is
     /// written by another thread while this page is open.
@@ -105,6 +104,16 @@ struct SettingsView: View {
             NativeNote("wow.lol speaks to your device over its own Rust and Swift "
                 + "stack — no desktop tool, no pymobiledevice3 — and works with iOS 26 "
                 + "and 27 rather than only with tethered devices.")
+
+            // The facts the old About tab carried.  It was a tab of its own, which
+            // made two screens of the same subject; this is where they belong.
+            LabeledContent("Bundle", value: Self.bundleIdentifier)
+            LabeledContent("Sections", value: String(AppDestination.allCases.count))
+            LabeledContent("Originals",
+                           value: "\(Originals.clips.count) wallpapers · \(Originals.presets.count) presets")
+            if let url = URL(string: "https://github.com/StayModding/wow.lol") {
+                Link("Source and build notes", destination: url)
+            }
         }
     }
 
@@ -210,27 +219,13 @@ struct SettingsView: View {
                 }
             Text("On iOS 26, show tweaks outside their tested iOS version range. Hardware requirements still apply.")
                 .font(.footnote).foregroundStyle(.secondary)
-            switchRow("Skip Setup",
-                      note: skipSetupNote,
-                      isOn: Binding(
-                          get: { skipSetup.skipSetupEnabled },
-                          set: { skipSetup.setSkipSetup($0) }))
+            // The switch has a page of its own now, with the pane list it writes;
+            // a second copy of the control here would be two places to change one
+            // value.
+            NavigationLink(value: AppDestination.skipSetup) {
+                Label("Skip Setup", systemImage: "forward.end")
+            }
         }
-    }
-
-    /// What the switch does, in the order the two files are written.
-    private var skipSetupNote: String {
-        [
-            "On by default, as upstream does. Off: an apply carries only the tweaks.",
-            "On: an apply adds two files ahead of the tweaks, in this order —",
-            "1. SysSharedContainerDomain-systemgroup.com.apple.configurationprofiles/"
-                + "Library/ConfigurationProfiles/CloudConfigurationDetails.plist, "
-                + "\(SkipSetup.panes.count) setup panes marked skipped;",
-            "2. ManagedPreferencesDomain/mobile/com.apple.purplebuddy.plist, setup marked done.",
-            "The device's existing cloud configuration is not merged in (reading it needs "
-                + "a lockdown service this port has no path for), and no keybag certificate "
-                + "is generated.",
-        ].joined(separator: "\n")
     }
 
     // MARK: - Operation History
@@ -417,6 +412,10 @@ struct SettingsView: View {
 
     private static func info(_ key: String) -> String {
         Bundle.main.object(forInfoDictionaryKey: key) as? String ?? "unknown"
+    }
+
+    private static var bundleIdentifier: String {
+        Bundle.main.infoDictionary?["CFBundleIdentifier"] as? String ?? "—"
     }
 
     private static var versionText: String {

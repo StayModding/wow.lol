@@ -124,19 +124,47 @@ furniture plus one bar of the app's:
   symbol filled, the way a system tab bar marks one, and the label sits under the
   icon instead of beside it.
 
-### Four more pages (`Nugget/Views/ToolPages.swift`)
+### The dock, and the pages it carries (`Nugget/Views/ToolPages.swift`)
 
-The dock now carries nineteen sections.  What was added is not new machinery —
-it is machinery that already existed in the core and had no page:
+Nineteen tabs, every one of them a page that already had machinery behind it.
 
-* **Originals** — the five artist packs, one section each, at a size where the
-  artwork reads.  Choosing one only sets the video choice; PosterBoard's Apply
-  still delivers it, and the page has a button that goes there.
-* **History** — `ApplyHistory`'s own record list, newest first, with the device
-  each operation went to and the error if it failed.  Clearable.
-* **Diagnostics** — the device line, whether the protective backup is encrypted,
-  and `Diagnostics.report()` on the page with Copy and Share.
-* **Log** — the run log full screen, selectable, shareable, clearable.
+**The bar is smaller.**  It was 64 pt of chrome on every screen — icon and label
+at reading size, padded like a toolbar button.  It is 42 pt now: 15 pt icon,
+9 pt label, a 34 pt chip whose hit area is widened to 44 by `contentShape`.  The
+page keeps the rest of the display; the inset the bar installs is its own height,
+so the last row of a list still ends above it rather than behind it.
+
+**Duplicate tabs are gone.**  Three pages were second copies of something the app
+already showed:
+
+* **Originals** — the same shelf that PosterBoard's **Wowser** switch draws, and
+  that Download Wallpapers draws as well.  Two copies of `OriginalsShelf` in two
+  tabs made the shelf look like two different features.  The page is deleted; the
+  shelf lives where wallpapers are chosen.
+* **About** — Settings already had an About section.  The facts that only About
+  showed (bundle id, section count, the Originals totals, the source link) moved
+  into that section, and the tab is gone.
+* **Log** — the run log is the detail view of a record, not a section beside
+  **History**.  It is pushed from History's title bar now (`showsAsTab == false`).
+
+The Skip Setup switch also left Settings → Apply for a page of its own, so one
+value has one control.
+
+**Three new pages**, all backed by core code that had no surface:
+
+* **Skip Setup** — the switch, the two files it writes in order, and the
+  `SkipSetupCatalog` pane list (81 panes) it puts in the cloud configuration.
+* **Conflicts** — `TweakConflicts` against the live selection: which enabled
+  tweaks write the same plist key in the same file, in apply order, so the second
+  wins.  Offline analysis; nothing is written to the device.
+* **Tunnel** — `WireCensus`'s transport counters live (DeviceLink messages,
+  out-of-order segments, peer retransmits, duplicate ACKs, refused segments, the
+  byte gap), with the reading the counters imply: a lost datagram that the peer
+  is re-sending recovers by waiting, one it never re-sends does not.
+
+**Diagnostics** and **Pairing** stay as their own tabs: they read different
+subsystems (a report vs. the pairing record and the wireless service), and
+neither duplicates the other.
 
 ### The artefact
 
