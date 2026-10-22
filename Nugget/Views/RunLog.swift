@@ -125,6 +125,12 @@ struct RunLogCard: View {
         if !log.lines.isEmpty {
             Section("Log") {
                 viewport
+                // The log lost its tab: it is a detail view, and this card is
+                // where a reader is already looking at it.
+                NavigationLink(value: AppDestination.log) {
+                    Label("Open full log", systemImage: "arrow.up.left.and.arrow.down.right")
+                        .font(.system(size: 14))
+                }
             }
         }
     }
