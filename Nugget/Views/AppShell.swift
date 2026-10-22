@@ -262,20 +262,35 @@ struct RootView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .navigationDestination(for: AppDestination.self) { page($0) }
-            // The home page draws its own brand bar and has no title to bar
-            // about; every other page keeps the bar it declares, because that is
-            // where its own actions live (`CommunityCatalogView` refreshes,
-            // `FilesView` renames and moves).
+            // Every page keeps the title bar it declares — that is where its own
+            // actions live (`CommunityCatalogView` refreshes, `FilesView` renames
+            // and moves) — and Home hides it, because the brand bar is Home's.
             .toolbar(selection == .home ? .hidden : .visible, for: .navigationBar)
+            // Home's brand bar is the only thing the shell puts *above* a page,
+            // and it belongs to Home alone.  A page already names itself in its
+            // own title bar, so a second band over that (the old strip) pushed
+            // the first row of every page a hand's width down the display.
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if selection == .home {
+                    WowBrandBar()
+                }
+            }
         }
-        // Outside the stack, so the strip survives a push inside a tab: the
-        // wallpaper downloader is reached from PosterBoard and the tabs are still
-        // there when it is open.
-        .safeAreaInset(edge: .top, spacing: 0) {
-            WowTabBar(selection: selection,
-                      destinations: tabs,
-                      select: select,
-                      onBack: backAction)
+        // The tabs are a bar along the bottom, not a row over the page.  Along
+        // the top they were the tallest thing on the screen and every page paid
+        // for them twice: once for the strip, once for the title bar underneath
+        // it, before a single row was visible.  Down here the page keeps the
+        // whole display, the bar floats over content that scrolls *under* it
+        // (the inset stops any row from ending beneath the plate, so nothing is
+        // ever hidden), and a thumb reaches it without moving the hand.
+        //
+        // Outside the stack, so the tabs survive a push inside one: the wallpaper
+        // downloader is reached from PosterBoard and the dock is still there when
+        // it is open.
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            WowTabDock(selection: selection,
+                       destinations: tabs,
+                       select: select)
         }
     }
 
@@ -304,17 +319,14 @@ struct RootView: View {
         }
     }
 
-    /// What the back control does: undo the thing that got you here.
+    /// No back control of the shell's own: each page carries exactly one.
     ///
-    /// Inside a tab it pops the page that tab pushed (PosterBoard → Download
-    /// Wallpapers); on any other tab it goes back to Home.  On Home there is
-    /// nothing behind the page, so the control is not drawn at all and the bar
-    /// keeps its full width for the wordmark.
-    private var backAction: (() -> Void)? {
-        if !path.isEmpty { return { if !path.isEmpty { path.removeLast() } } }
-        guard selection != .home else { return nil }
-        return { select(.home) }
-    }
+    /// A **pushed** page (PosterBoard → Download Wallpapers) is undone by the
+    /// stack's back button, which the title bar already draws — the shell adding
+    /// a second chevron is what used to put two of them side by side.  A **tab**
+    /// is a switch rather than a push, so the stack has nothing behind it and
+    /// draws nothing; `page(_:)` gives those pages one leading item that goes
+    /// back to Home.
 
     private func select(_ destination: AppDestination) {
         // A second tap on the tab that is already open means "back to the top of
@@ -324,10 +336,38 @@ struct RootView: View {
         withAnimation(.easeInOut(duration: 0.18)) { selection = destination }
     }
 
+    /// The page for a destination, plus the one piece of chrome the shell adds to
+    /// it: the way back to Home.
+    ///
+    /// Attached here rather than drawn over the page, so it sits in the title bar
+    /// beside the page's own actions instead of taking a row of its own, and only
+    /// when the stack has no back button of its own to show (see the note above).
+    @ViewBuilder
+    private func page(_ destination: AppDestination) -> some View {
+        content(destination)
+            .toolbar {
+                if path.isEmpty, destination != .home {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button { select(.home) } label: {
+                            HStack(spacing: 2) {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 15, weight: .semibold))
+                                Text("Home")
+                                    .font(.system(size: 17))
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Back to Home")
+                    }
+                }
+            }
+    }
+
     /// The pages, by destination.  Home is not among the pushed cases — it is the
     /// one view that stays alive — but the switch still has to be exhaustive.
     @ViewBuilder
-    private func page(_ destination: AppDestination) -> some View {
+    private func content(_ destination: AppDestination) -> some View {
         switch destination {
         case .home:
             EmptyView()
@@ -361,56 +401,19 @@ struct RootView: View {
     }
 }
 
-/// The brand bar and the tab strip.
+/// Home's header: the mark, the wordmark and the device's software version.
 ///
-/// Painted on `.ultraThinMaterial` with a lavender wash over it, so the page
-/// scrolls underneath a hint of the icon's colour instead of a hard grey bar —
-/// and the material carries into the status bar, which a plain background on the
-/// inset could not do.
-private struct WowTabBar: View {
-    let selection: AppDestination
-    let destinations: [AppDestination]
-    let select: (AppDestination) -> Void
-    /// Absent on Home, where there is nothing behind the page.
-    let onBack: (() -> Void)?
-
+/// Home hides the navigation bar — its list title would only repeat the wordmark
+/// — so this is the one page that carries the app's identity.  Every other page
+/// is named by its own title bar, which is what the user is looking for there.
+private struct WowBrandBar: View {
     @ObservedObject private var device = DeviceIdentityMonitor.shared
 
     var body: some View {
-        VStack(spacing: 9) {
-            brandBar
-            strip
-        }
-        .padding(.top, 2)
-        .padding(.bottom, 9)
-        .frame(maxWidth: .infinity)
-        .background(alignment: .top) { backdrop }
-        .overlay(alignment: .bottom) {
-            Rectangle()
-                .fill(Color.primary.opacity(0.07))
-                .frame(height: 0.5)
-        }
-        .sensoryFeedback(.selection, trigger: selection)
-    }
-
-    private var brandBar: some View {
         HStack(spacing: 9) {
-            if let onBack {
-                Button(action: onBack) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(.primary)
-                        .frame(width: 30, height: 30)
-                        .background(Circle().fill(Color.primary.opacity(0.08)))
-                        .contentShape(Circle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Back")
-                .transition(.opacity.combined(with: .scale(scale: 0.85)))
-            }
-            NativeLogo(size: 26)
+            NativeLogo(size: 27)
             Text("wow.lol")
-                .font(.system(size: 19, weight: .bold, design: .rounded))
+                .font(.system(size: 20, weight: .bold, design: .rounded))
                 .kerning(-0.3)
                 .foregroundStyle(.primary)
             Spacer(minLength: 4)
@@ -426,13 +429,54 @@ private struct WowTabBar: View {
             }
         }
         .padding(.horizontal, 16)
-        .animation(.easeInOut(duration: 0.18), value: onBack != nil)
+        .padding(.top, 2)
+        .padding(.bottom, 10)
+        .frame(maxWidth: .infinity)
+        .background(alignment: .top) { backdrop }
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Color.primary.opacity(0.07))
+                .frame(height: 0.5)
+        }
     }
 
-    private var strip: some View {
+    /// Painted on `.ultraThinMaterial` with a lavender wash over it, so the list
+    /// scrolls underneath a hint of the icon's colour instead of a hard grey bar
+    /// — and the material carries into the status bar, which a plain background
+    /// on the inset could not do.
+    private var backdrop: some View {
+        Rectangle()
+            .fill(.ultraThinMaterial)
+            .overlay {
+                LinearGradient(colors: [WowBrand.lavender.opacity(0.22),
+                                        WowBrand.lavender.opacity(0.02)],
+                               startPoint: .top,
+                               endPoint: .bottom)
+            }
+            .ignoresSafeArea(edges: .top)
+    }
+}
+
+/// The tabs, floating along the bottom edge.
+///
+/// A pill of chips rather than a stock `TabView`: this app has thirteen sections
+/// and a stock bar would put eight of them behind "More" — the dropdown the
+/// shell exists to remove, moved to the bottom of the screen.  The row scrolls,
+/// keeps the active chip centred, and every section stays a first-class tab.
+///
+/// The plate is material with the icon's lavender through it, so it reads as the
+/// same object as Home's header, and the chips slide under its rounded ends
+/// rather than over the corners: the clip is applied to the scroll view *inside*
+/// the background, which also leaves the plate's shadow uncut.
+private struct WowTabDock: View {
+    let selection: AppDestination
+    let destinations: [AppDestination]
+    let select: (AppDestination) -> Void
+
+    var body: some View {
         ScrollViewReader { proxy in
             ScrollView(.horizontal) {
-                HStack(spacing: 8) {
+                HStack(spacing: 6) {
                     ForEach(destinations) { destination in
                         Button { select(destination) } label: {
                             chip(destination)
@@ -443,10 +487,12 @@ private struct WowTabBar: View {
                         .accessibilityAddTraits(destination == selection ? .isSelected : [])
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 3)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 7)
             }
             .scrollIndicators(.hidden)
+            .clipShape(Capsule(style: .continuous))
+            .background { plate }
             // The active tab is never allowed to sit half off screen.  No
             // animation on the first pass: the row is scrolled to Home before
             // anyone sees it, so animating it would look like the app scrolling
@@ -458,6 +504,24 @@ private struct WowTabBar: View {
                 }
             }
         }
+        .padding(.horizontal, 10)
+        .padding(.top, 6)
+        .padding(.bottom, 2)
+        .sensoryFeedback(.selection, trigger: selection)
+    }
+
+    private var plate: some View {
+        Capsule(style: .continuous)
+            .fill(.ultraThinMaterial)
+            .overlay {
+                Capsule(style: .continuous)
+                    .fill(WowBrand.lavender.opacity(0.10))
+            }
+            .overlay {
+                Capsule(style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.09), lineWidth: 0.8)
+            }
+            .shadow(color: .black.opacity(0.18), radius: 18, y: 6)
     }
 
     private func chip(_ destination: AppDestination) -> some View {
@@ -487,17 +551,5 @@ private struct WowTabBar: View {
         .shadow(color: active ? WowBrand.violet.opacity(0.30) : .clear, radius: 6, y: 3)
         .contentShape(Capsule(style: .continuous))
         .animation(.easeOut(duration: 0.18), value: active)
-    }
-
-    private var backdrop: some View {
-        Rectangle()
-            .fill(.ultraThinMaterial)
-            .overlay {
-                LinearGradient(colors: [WowBrand.lavender.opacity(0.22),
-                                        WowBrand.lavender.opacity(0.02)],
-                               startPoint: .top,
-                               endPoint: .bottom)
-            }
-            .ignoresSafeArea(edges: .top)
     }
 }
