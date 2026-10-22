@@ -543,10 +543,6 @@ class GoldenNuggetEngine {
             throw GoldenNuggetError("AirLift cannot reset the PosterBoard store — it only adds "
                 + "wallpapers. Switch the apply mode to \"Protective backup\" for a reset.")
         }
-        if posterBoard.video != nil {
-            throw GoldenNuggetError("AirLift cannot apply a PosterBoard video: its frames are "
-                + "staged for a restore. Switch the apply mode to \"Protective backup\".")
-        }
         let reason = Airlift.unsupportedReason(deviceVersion: deviceVersion, buildVersion: buildVersion)
         guard reason.isEmpty else { throw GoldenNuggetError(reason) }
         guard FileManager.default.fileExists(atPath: AppPaths.pairingFile.path) else {
@@ -558,10 +554,12 @@ class GoldenNuggetEngine {
     /// Run the AirLift PosterBoard injection, reporting through the run log.
     private func applyPosterBoardOverAirlift(selection: PosterBoardSelection,
                                              templates: [TemplateFile] = [],
+                                             stagedDescriptors: [URL] = [],
                                              deviceVersion: String) async throws {
         try await PosterBoardAirlift.apply(
             selection: selection,
             templates: templates,
+            stagedDescriptors: stagedDescriptors,
             structureVersion: PosterBoard.fallbackStructureVersion,
             deviceVersion: deviceVersion,
             pairingPath: AppPaths.pairingFile.path,
@@ -636,7 +634,25 @@ class GoldenNuggetEngine {
             deviceVersion: identity.version.isEmpty ? deviceVersion : identity.version,
             buildVersion: identity.buildVersion)
         log("PosterBoard: \(selection.describe) — over AirLift, no backup")
-        try await applyPosterBoardOverAirlift(selection: selection, deviceVersion: deviceVersion)
+        // The video stage builds its descriptor tree here instead of during a
+        // restore: `PosterBoardVideo` only needs a plan and a directory, and the
+        // tree it writes is exactly what AirLift injects.
+        var staged: [URL] = []
+        var scratch: URL?
+        if let plan = selection.plan {
+            let directory = FileManager.default.temporaryDirectory
+                .appendingPathComponent("airlift-video-" + UUID().uuidString, conformingTo: .directory)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            scratch = directory
+            log("PosterBoard: building the video descriptor for AirLift…")
+            try await PosterBoardVideo.generate(plan: plan, outputDirectory: directory,
+                                               log: { AppLog.write($0) })
+            staged = [directory]
+        }
+        defer { if let scratch { try? FileManager.default.removeItem(at: scratch) } }
+        try await applyPosterBoardOverAirlift(selection: selection,
+                                              stagedDescriptors: staged,
+                                              deviceVersion: deviceVersion)
         log("PosterBoard: injected over AirLift and resprung. No backup was taken, and no "
             + "tweak was delivered — the home page's Apply is what delivers those.")
     }

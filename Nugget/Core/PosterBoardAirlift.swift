@@ -44,10 +44,10 @@ enum PosterBoardAirlift {
     /// Inject the selected packs, and respring so they show up.
     ///
     /// - Parameters:
-    ///   - selection: the same selection the backup mode takes. Packs are
-    ///     honoured here; the video stage is a backup-mode concern and is rejected
-    ///     by the caller, because its frames are computed and staged locally and
-    ///     this path does not carry them.
+    ///   - selection: the same selection the backup mode takes.  Packs are read
+    ///     from it; the video stage arrives separately in `stagedDescriptors`,
+    ///     because its frames are computed locally by `PosterBoardVideo` and this
+    ///     path only knows how to inject a descriptor tree.
     ///   - templates: configured before descriptor discovery, alongside the packs.
     ///   - structureVersion: the store directory version. 61 for everything this
     ///     supports, matching `PosterBoard.fallbackStructureVersion`.
@@ -57,6 +57,11 @@ enum PosterBoardAirlift {
     static func apply(
         selection: PosterBoardSelection,
         templates: [TemplateFile] = [],
+        /// Descriptor trees already built on this device — the video stage's
+        /// output, which used to be refused here.  Each directory is copied into
+        /// the source's staging folder, so `findDescriptors` sees the same tree
+        /// the backup path would have walked.
+        stagedDescriptors: [URL] = [],
         structureVersion: Int,
         deviceVersion: String,
         pairingPath: String,
@@ -76,6 +81,17 @@ enum PosterBoardAirlift {
                 try await Airlift.extractZip(archivePath: pack.url.path, destDir: stage.path)
                 if PosterBoard.shouldConvertLegacy(pack: pack, deviceVersion: deviceVersion, log: log) {
                     PosterBoard.convertLegacyPack(pack.name, at: stage, log: log)
+                }
+            }
+        }
+        sources += stagedDescriptors.map { directory in
+            Source(name: directory.lastPathComponent, url: directory,
+                   defaultExtension: PosterBoardPosterType.collections.extensionBundleID) { stage in
+                let items = (try? FileManager.default.contentsOfDirectory(
+                    at: directory, includingPropertiesForKeys: nil)) ?? []
+                for item in items {
+                    try? FileManager.default.copyItem(
+                        at: item, to: stage.appendingPathComponent(item.lastPathComponent))
                 }
             }
         }

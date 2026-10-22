@@ -48,6 +48,20 @@ struct WallpaperDownloadsView: View {
     /// nowhere else: this page only asks, and the apply decides.
     @State private var deviceVersion = ""
 
+    /// Which shelf of the page is showing: the community catalogs, or the
+    /// wow.lol packs that ship inside the app.
+    ///
+    /// Not a third `WallpaperSource`: that enum is the shape of the remote
+    /// catalog request, and these wallpapers are files in this bundle.
+    @State private var shelf: Shelf = .community
+
+    private enum Shelf: String, CaseIterable, Identifiable {
+        case community
+        case wowser
+        var id: String { rawValue }
+        var label: String { self == .community ? "Community" : "Wowser" }
+    }
+
     /// What the grid shows: the catalog, filtered.
     ///
     /// The reference's `_apply_search`, verbatim in behaviour — a substring match
@@ -63,24 +77,29 @@ struct WallpaperDownloadsView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                controlsCard
-                statusCard
-                if error != nil { errorCard }
-                if visible.isEmpty && !loading {
-                    NativeNote(wallpapers.isEmpty
-                        ? "No wallpapers found. The catalogs are community-run and one of them may be down — the other source is still listed above."
-                        : "Nothing matches “\(search.trimmingCharacters(in: .whitespacesAndNewlines))”.")
+            VStack(alignment: .leading, spacing: 14) {
+                shelfPicker
+                    .padding(.horizontal, 16)
+                if shelf == .wowser {
+                    wowserShelf
+                    NativeNote("Drawn for wow.lol — poster art, not photographs. Gyro cuts move "
+                        + "against themselves with the phone's tilt, animated cuts loop, live cuts breathe. "
+                        + "Choosing one fills in the video choice on the PosterBoard page; its Apply "
+                        + "delivers it, in either apply mode.")
+                        .padding(.horizontal, 16)
+                    RunLogCard()
+                        .padding(.horizontal, 16)
                 } else {
-                    grid
+                    communityShelf
+                        .padding(.horizontal, 16)
                 }
-                notesCard
-                RunLogCard()
             }
-            .padding(.vertical)
-            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
         }
         .background(Color(uiColor: .systemGroupedBackground))
+        .refreshable {
+            if shelf == .community { await load() }
+        }
         .navigationTitle("Download Wallpapers")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -106,6 +125,50 @@ struct WallpaperDownloadsView: View {
             deviceVersion = await DeviceIdentity.read().version
         }
         .legacyConvertPrompt($legacyPrompt, answer: answerLegacyPrompt)
+    }
+
+    // MARK: - Shelves
+
+    private var shelfPicker: some View {
+        Picker("Shelf", selection: $shelf) {
+            ForEach(Shelf.allCases) { shelf in
+                Text(shelf.label).tag(shelf)
+            }
+        }
+        .pickerStyle(.segmented)
+        .accessibilityLabel("Wallpaper shelf")
+    }
+
+    private var wowserShelf: some View {
+        OriginalsShelf(posterBoardSelection: $selection)
+    }
+
+    /// The remote catalogs: controls, status, then the grid.
+    private var communityShelf: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            controlsCard
+            HStack(spacing: 6) {
+                Text(status)
+                    .font(.footnote)
+                    .foregroundStyle(statusTone.nativeColor)
+                Spacer(minLength: 0)
+                if !visible.isEmpty {
+                    Text("\(visible.count)")
+                        .font(.footnote.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+            }
+            if error != nil { errorCard }
+            if visible.isEmpty && !loading {
+                NativeNote(wallpapers.isEmpty
+                    ? "No wallpapers found. The catalogs are community-run and one of them may be down — the other source is still available above."
+                    : "Nothing matches “\(search.trimmingCharacters(in: .whitespacesAndNewlines))”.")
+            } else {
+                grid
+            }
+            notesCard
+            RunLogCard()
+        }
     }
 
     // MARK: - Controls
@@ -197,7 +260,7 @@ struct WallpaperDownloadsView: View {
         // takes a very long scroll. 108 is what three columns actually fit on the
         // narrowest phone this builds for, so the grid does not collapse back to
         // two wider ones.
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 108), spacing: 12)], spacing: 16) {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 148), spacing: 14)], spacing: 18) {
             ForEach(visible) { wallpaper in
                 WallpaperCard(wallpaper: wallpaper,
                               busy: importing == wallpaper.id,

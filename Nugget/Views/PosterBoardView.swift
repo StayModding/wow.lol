@@ -476,8 +476,9 @@ struct PosterBoardView: View {
         if selection.loop {
             lines.append("Looping decodes the video to JPEG frames and hands PosterBoard a "
                 + "CoreAnimation frame list (up to \(PosterBoardVideo.frameLimit) frames, at the "
-                + "video's own resolution). It is slow, and the frames are written into the "
-                + "backup, so a long clip makes a large one — trim it first.")
+                + "video's own resolution). It is slow, and in the backup mode those frames ride "
+                + "the backup, so a long clip makes a large one — trim it first. Over AirLift they "
+                + "are built into a descriptor here and injected, with no backup involved.")
             lines.append("A video that carries a rotation transform is decoded in its stored "
                 + "orientation, which is what the reference's decoder does; such a clip may "
                 + "appear rotated on the Lock Screen.")
