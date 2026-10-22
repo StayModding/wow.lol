@@ -166,6 +166,15 @@ targets:
         buildPhase: resources
       - path: layout/Applications/GoldenNuggetMobile.app/Logo@1x.png
         buildPhase: resources
+
+      # wow.lol Originals: the bundled wallpaper loops and their thumbnails.
+      # Each file lands in the bundle *root* — `Originals.bundleURL` asks
+      # `Bundle.main` for "<slug>-<motion>" with no subdirectory — so these are
+      # listed as two directories of ordinary resources, not as folder refs.
+      - path: Originals/Clips
+        buildPhase: resources
+      - path: Originals/Thumbs
+        buildPhase: resources
       # NO loose AppIcon*.png here, on purpose.  actool can emit them itself
       # (`standalone-icon-behavior`, set to `none` below) and a loose light-only
       # PNG in the bundle root wins over the catalog's rendition — which would

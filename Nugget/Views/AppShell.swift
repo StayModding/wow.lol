@@ -236,6 +236,9 @@ struct RootView: View {
         // its editor is a selection that can be missing while the button is
         // pressed.
         .task {
+            // Seeded before the pages read the folder, so the Originals are in
+            // the Presets list the first time it is opened.
+            Originals.seedPresetsIfNeeded()
             posterBoardSelection.loadFromDisk()
             statusBarSelection.loadFromDisk()
             // No device version here on purpose: this runs at launch, possibly
@@ -262,19 +265,11 @@ struct RootView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .navigationDestination(for: AppDestination.self) { page($0) }
-            // Every page keeps the title bar it declares — that is where its own
-            // actions live (`CommunityCatalogView` refreshes, `FilesView` renames
-            // and moves) — and Home hides it, because the brand bar is Home's.
-            .toolbar(selection == .home ? .hidden : .visible, for: .navigationBar)
-            // Home's brand bar is the only thing the shell puts *above* a page,
-            // and it belongs to Home alone.  A page already names itself in its
-            // own title bar, so a second band over that (the old strip) pushed
-            // the first row of every page a hand's width down the display.
-            .safeAreaInset(edge: .top, spacing: 0) {
-                if selection == .home {
-                    WowBrandBar()
-                }
-            }
+            // One title bar, the system's, on every page.  Home declares
+            // "wow.lol" and every other page declares its own name, so the shell
+            // draws nothing above a page at all: the old brand bar was a second
+            // band saying what the title bar underneath already said.
+            .toolbar(.visible, for: .navigationBar)
         }
         // The tabs are a bar along the bottom, not a row over the page.  Along
         // the top they were the tallest thing on the screen and every page paid
@@ -401,73 +396,18 @@ struct RootView: View {
     }
 }
 
-/// Home's header: the mark, the wordmark and the device's software version.
+/// The tabs, along the bottom edge.
 ///
-/// Home hides the navigation bar — its list title would only repeat the wordmark
-/// — so this is the one page that carries the app's identity.  Every other page
-/// is named by its own title bar, which is what the user is looking for there.
-private struct WowBrandBar: View {
-    @ObservedObject private var device = DeviceIdentityMonitor.shared
-
-    var body: some View {
-        HStack(spacing: 9) {
-            NativeLogo(size: 27)
-            Text("wow.lol")
-                .font(.system(size: 20, weight: .bold, design: .rounded))
-                .kerning(-0.3)
-                .foregroundStyle(.primary)
-            Spacer(minLength: 4)
-            if !device.current.version.isEmpty {
-                Text("iOS \(device.current.version)")
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(Color.accentColor)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(Capsule().fill(Color.accentColor.opacity(0.13)))
-                    .accessibilityLabel("Device software version \(device.current.version)")
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.top, 2)
-        .padding(.bottom, 10)
-        .frame(maxWidth: .infinity)
-        .background(alignment: .top) { backdrop }
-        .overlay(alignment: .bottom) {
-            Rectangle()
-                .fill(Color.primary.opacity(0.07))
-                .frame(height: 0.5)
-        }
-    }
-
-    /// Painted on `.ultraThinMaterial` with a lavender wash over it, so the list
-    /// scrolls underneath a hint of the icon's colour instead of a hard grey bar
-    /// — and the material carries into the status bar, which a plain background
-    /// on the inset could not do.
-    private var backdrop: some View {
-        Rectangle()
-            .fill(.ultraThinMaterial)
-            .overlay {
-                LinearGradient(colors: [WowBrand.lavender.opacity(0.22),
-                                        WowBrand.lavender.opacity(0.02)],
-                               startPoint: .top,
-                               endPoint: .bottom)
-            }
-            .ignoresSafeArea(edges: .top)
-    }
-}
-
-/// The tabs, floating along the bottom edge.
+/// A pill of symbols rather than a stock `TabView`: this app has thirteen
+/// sections and a stock bar would put eight of them behind "More" — the
+/// dropdown the shell exists to remove, moved to the bottom of the screen.  The
+/// row scrolls, keeps the active tab centred, and every section stays a
+/// first-class tab.
 ///
-/// A pill of chips rather than a stock `TabView`: this app has thirteen sections
-/// and a stock bar would put eight of them behind "More" — the dropdown the
-/// shell exists to remove, moved to the bottom of the screen.  The row scrolls,
-/// keeps the active chip centred, and every section stays a first-class tab.
-///
-/// The plate is material with the icon's lavender through it, so it reads as the
-/// same object as Home's header, and the chips slide under its rounded ends
-/// rather than over the corners: the clip is applied to the scroll view *inside*
-/// the background, which also leaves the plate's shadow uncut.
+/// The look is the system's: one sheet of material, no per-tab fill, no shadows
+/// under the chips.  The active tab is told apart by tint and weight, the way a
+/// system tab bar does it, instead of by a second colour scheme inside a bar
+/// that is already glass.
 private struct WowTabDock: View {
     let selection: AppDestination
     let destinations: [AppDestination]
@@ -476,7 +416,7 @@ private struct WowTabDock: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView(.horizontal) {
-                HStack(spacing: 6) {
+                HStack(spacing: 2) {
                     ForEach(destinations) { destination in
                         Button { select(destination) } label: {
                             chip(destination)
@@ -488,7 +428,7 @@ private struct WowTabDock: View {
                     }
                 }
                 .padding(.horizontal, 8)
-                .padding(.vertical, 7)
+                .padding(.vertical, 6)
             }
             .scrollIndicators(.hidden)
             .clipShape(Capsule(style: .continuous))
@@ -504,52 +444,44 @@ private struct WowTabDock: View {
                 }
             }
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, 12)
         .padding(.top, 6)
         .padding(.bottom, 2)
         .sensoryFeedback(.selection, trigger: selection)
     }
 
+    /// A sheet of material with the faintest edge, so it reads as glass over
+    /// the page rather than as another card laid on it.
     private var plate: some View {
         Capsule(style: .continuous)
             .fill(.ultraThinMaterial)
             .overlay {
                 Capsule(style: .continuous)
-                    .fill(WowBrand.lavender.opacity(0.10))
+                    .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.7)
             }
-            .overlay {
-                Capsule(style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.09), lineWidth: 0.8)
-            }
-            .shadow(color: .black.opacity(0.18), radius: 18, y: 6)
+            .shadow(color: .black.opacity(0.16), radius: 16, y: 4)
     }
 
     private func chip(_ destination: AppDestination) -> some View {
         let active = destination == selection
-        return HStack(spacing: 6) {
+        return VStack(spacing: 3) {
             Image(systemName: destination.systemImage)
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: 17, weight: active ? .semibold : .regular))
+                .symbolVariant(active ? .fill : .none)
+                .frame(height: 20)
             Text(destination.tabTitle)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: 10, weight: active ? .semibold : .medium))
                 .lineLimit(1)
         }
-        .foregroundStyle(active ? Color.white : Color.secondary)
+        .foregroundStyle(active ? Color.accentColor : Color.secondary)
         .padding(.horizontal, 12)
-        .padding(.vertical, 9)
-        .frame(minHeight: 34)
+        .padding(.vertical, 5)
+        .frame(minWidth: 58)
         .background {
-            Capsule(style: .continuous)
-                .fill(active
-                      ? AnyShapeStyle(WowBrand.selectedTab)
-                      : AnyShapeStyle(Color.primary.opacity(0.055)))
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(active ? Color.accentColor.opacity(0.12) : .clear)
         }
-        .overlay {
-            Capsule(style: .continuous)
-                .strokeBorder(active ? Color.white.opacity(0.18) : Color.primary.opacity(0.07),
-                              lineWidth: 0.8)
-        }
-        .shadow(color: active ? WowBrand.violet.opacity(0.30) : .clear, radius: 6, y: 3)
-        .contentShape(Capsule(style: .continuous))
-        .animation(.easeOut(duration: 0.18), value: active)
+        .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .animation(.easeOut(duration: 0.16), value: active)
     }
 }

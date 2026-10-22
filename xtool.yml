@@ -48,5 +48,10 @@ resources:
   # no icon key can claim, so it can never shadow the iconstack on the home
   # screen -- which is what the light-only AppIcon*.png files were doing.
   - layout/Applications/GoldenNuggetMobile.app/Logo@2x.png
+  # wow.lol Originals — the bundled wallpaper loops and thumbnails, copied into
+  # the bundle root alongside the loose logo for the same reason: `Originals`
+  # looks them up by bare name.
+  - Originals/Clips
+  - Originals/Thumbs
   - layout/Applications/GoldenNuggetMobile.app/Logo@1x.png
 entitlementsPath: entitlements.plist

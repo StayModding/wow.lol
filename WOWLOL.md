@@ -47,8 +47,9 @@ tweaks. Nothing about what the app *does* to a device changed.
   button, and a **tab** gets one leading `‹ Home` item in its title bar (the
   shell's chevron used to sit in the brand bar, above the title bar that already
   had one).
-* The brand bar (mark, wordmark, `iOS 26.x` pill) belongs to Home alone; every
-  other page is headed by its own title bar.
+* No custom header at all: Home's title bar says `wow.lol`, every other page
+  names its own section.  (A brand bar of the shell's own sat here for two
+  builds; the second pass removed it — see below.)
 * The home page's device line and its connection verdict are one card now — the
   device name, a coloured dot and "Supported!" / "Partially Supported" /
   "Not connected" — instead of a card containing one centred word.
@@ -60,6 +61,47 @@ tweaks. Nothing about what the app *does* to a device changed.
   call sites.
 * The home header is now a device card (device line, pairing state, refresh) —
   the wordmark moved up into the shell, where every page shares it.
+
+### wow.lol Originals (`Nugget/Core/Originals.swift`)
+
+Five artist packs — 2Pac, Blamian, Biggie, Snoop and Dr. Dre — each with a
+wallpaper and a tweak preset.  Everything is generated for this app by
+`scripts/gen-originals.py`: typographic posters, no photographs and no
+likenesses, drawn with Pillow and encoded to H.264.
+
+* **Wallpapers** are 3-second 1080×1920 loops in `Originals/Clips`, with 540×960
+  thumbnails in `Originals/Thumbs`.  They are **videos**, not `.tendies` packs,
+  because a pack carries a poster descriptor and descriptors can only be built on
+  a device — a video is an input the app already knows how to turn into one
+  (`PosterBoardVideo`).  Tapping a card on the PosterBoard page copies the clip
+  into the app's container as the video choice; the page's Apply delivers it.
+* **Gyro** cuts are drawn on two planes, foreground against an oversized
+  background.  The caml the video path writes puts that layer off-centre and
+  scaled, which is the travel PosterKit's depth effect moves against.  **Animated**
+  cuts keep one plane and animate the art itself (smoke, light sweep, rotating
+  badge).
+* **Presets** are seeded into `Documents/wow.lol/Presets` on first launch by
+  `Originals.seedPresetsIfNeeded`, each written through
+  `GoldenNuggetPresets.document(for:)` from a real `TweakSelection` — so they are
+  byte-identical in shape to a preset the app saves itself, rather than a
+  hand-written JSON that would drift from the catalog.  Deleted ones stay
+  deleted: the seed runs once per install.
+* Regenerate with `python scripts/gen-originals.py` (needs Pillow, numpy and
+  ffmpeg — `imageio-ffmpeg` supplies the encoder).  `--probe` writes one still
+  per pack instead of encoding, which is how the art is reviewed.
+
+### Design, second pass
+
+The first shell was decoration on top of decoration: a brand bar over a tab
+strip over every page's own title bar.  What is left is the system's own
+furniture plus one bar of the app's:
+
+* **One title bar per page**, drawn by the navigation stack.  Home's says
+  `wow.lol`; the brand bar is gone.
+* **The dock** is a single sheet of `.ultraThinMaterial` with no per-tab fill and
+  no shadows under the chips.  The active tab is tinted and semibold with its
+  symbol filled, the way a system tab bar marks one, and the label sits under the
+  icon instead of beside it.
 
 ### Deliberately left alone
 
