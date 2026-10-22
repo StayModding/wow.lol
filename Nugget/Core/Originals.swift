@@ -422,6 +422,4 @@ enum Originals {
         }
         return written
     }
-        return written
-    }
 }
