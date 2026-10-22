@@ -66,19 +66,38 @@ struct PosterBoardView: View {
     /// an immediate call.
     @State private var legacyPrompt: LegacyConvertPrompt?
 
+    /// Which shelf is showing: the page's own, or the Wowser packs.
+    ///
+    /// A control on the page rather than a second tab in the dock: the packs
+    /// deliver *through* this page's Apply, and splitting them across two
+    /// sections would put the choice and the button on different screens.
+    @State private var shelf: Shelf = .board
+
+    private enum Shelf: String, CaseIterable, Identifiable {
+        case board
+        case wowser
+        var id: String { rawValue }
+        var label: String { self == .board ? "PosterBoard" : "Wowser" }
+    }
+
     var body: some View {
         List {
-            deviceSection
-            applyModeSection
-            // AirLift writes the descriptors into the container and never looks
-            // at the store's sqlite, so on that mode the whole card is about a
-            // stage the run will not perform. Leaving it up would be offering a
-            // fetch that the apply below ignores.
-            if applyMode != .airlift { databaseSection }
-            packsSection
-            videoSection
-            resetSection
-            if applyMode == .airlift { airliftApplySection }
+            shelfSection
+            if shelf == .wowser {
+                wowserSection
+            } else {
+                deviceSection
+                applyModeSection
+                // AirLift writes the descriptors into the container and never looks
+                // at the store's sqlite, so on that mode the whole card is about a
+                // stage the run will not perform. Leaving it up would be offering a
+                // fetch that the apply below ignores.
+                if applyMode != .airlift { databaseSection }
+                packsSection
+                videoSection
+                resetSection
+                if applyMode == .airlift { airliftApplySection }
+            }
             applySection
             if let pickError { errorSection(pickError) }
             if !statusText.isEmpty {
@@ -135,6 +154,33 @@ struct PosterBoardView: View {
             : "PosterBoard: \(prompt.pack.name) stays in its original legacy format "
                 + "(\(prompt.families.joined(separator: ", "))).")
         selection.loadFromDisk()
+    }
+
+    // MARK: - Shelves
+
+    private var shelfSection: some View {
+        Section {
+            Picker("Shelf", selection: $shelf) {
+                ForEach(Shelf.allCases) { shelf in
+                    Text(shelf.label).tag(shelf)
+                }
+            }
+            .pickerStyle(.segmented)
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 2, trailing: 16))
+        }
+    }
+
+    private var wowserSection: some View {
+        Section {
+            OriginalsShelf(posterBoardSelection: $selection)
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+            NativeNote("Five artist packs, art drawn for wow.lol. Choosing one sets the video choice — "
+                + "Apply below delivers it, exactly like a video you pick yourself. Gyro cuts are drawn "
+                + "on two planes so the art moves against itself when the phone tilts; animated cuts "
+                + "loop; live cuts breathe.")
+        }
     }
 
     // MARK: - Device and database

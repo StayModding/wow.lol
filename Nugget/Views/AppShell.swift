@@ -43,6 +43,8 @@ enum AppDestination: String, CaseIterable, Identifiable, Hashable {
     case history
     case diagnostics
     case log
+    case pairing
+    case about
     case settings
 
     var id: String { rawValue }
@@ -83,6 +85,8 @@ enum AppDestination: String, CaseIterable, Identifiable, Hashable {
         case .history: "History"
         case .diagnostics: "Diagnostics"
         case .log: "Run Log"
+        case .pairing: "Pairing"
+        case .about: "About"
         case .settings: "Settings"
         }
     }
@@ -108,6 +112,8 @@ enum AppDestination: String, CaseIterable, Identifiable, Hashable {
         case .history: "History"
         case .diagnostics: "Diag"
         case .log: "Log"
+        case .pairing: "Pairing"
+        case .about: "About"
         case .settings: "Settings"
         }
     }
@@ -131,6 +137,8 @@ enum AppDestination: String, CaseIterable, Identifiable, Hashable {
         case .history: "clock.arrow.circlepath"
         case .diagnostics: "stethoscope"
         case .log: "text.alignleft"
+        case .pairing: "dot.radiowaves.left.and.right"
+        case .about: "info.circle"
         case .settings: "gearshape"
         }
     }
@@ -415,6 +423,10 @@ struct RootView: View {
             DiagnosticsView()
         case .log:
             LogView()
+        case .pairing:
+            PairingView()
+        case .about:
+            AboutView()
         case .settings:
             SettingsView()
         }
@@ -452,11 +464,10 @@ private struct WowTabDock: View {
                         .accessibilityAddTraits(destination == selection ? .isSelected : [])
                     }
                 }
-                .padding(.horizontal, 8)
+                .padding(.horizontal, 6)
                 .padding(.vertical, 6)
             }
             .scrollIndicators(.hidden)
-            .clipShape(Capsule(style: .continuous))
             .background { plate }
             // The active tab is never allowed to sit half off screen.  No
             // animation on the first pass: the row is scrolled to Home before
@@ -469,22 +480,26 @@ private struct WowTabDock: View {
                 }
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.top, 6)
-        .padding(.bottom, 2)
         .sensoryFeedback(.selection, trigger: selection)
     }
 
-    /// A sheet of material with the faintest edge, so it reads as glass over
-    /// the page rather than as another card laid on it.
+    /// A bar across the bottom edge, not a capsule floating over the page.
+    ///
+    /// It was a floating pill, and a floating pill is *over* content by
+    /// construction: the last row of a list ran up against it, and anything the
+    /// page drew at the bottom — an Apply, a player, a keyboard — shared space
+    /// with it.  The bar now owns the bottom edge outright, its material runs
+    /// into the home-indicator area, and the safe-area inset it installs is its
+    /// own height, so a page's last row ends above it rather than behind it.
     private var plate: some View {
-        Capsule(style: .continuous)
+        Rectangle()
             .fill(.ultraThinMaterial)
-            .overlay {
-                Capsule(style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.7)
+            .overlay(alignment: .top) {
+                Rectangle()
+                    .fill(Color.primary.opacity(0.08))
+                    .frame(height: 0.5)
             }
-            .shadow(color: .black.opacity(0.16), radius: 16, y: 4)
+            .ignoresSafeArea(edges: .bottom)
     }
 
     private func chip(_ destination: AppDestination) -> some View {

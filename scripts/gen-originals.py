@@ -62,7 +62,7 @@ class Artist:
     tag: str
     motif: str
     palette: tuple[str, str, str]
-    variants: tuple[str, ...] = ("parallax", "animated")
+    variants: tuple[str, ...] = ("parallax", "animated", "live")
     note: str = ""
     accent: str = "#FFFFFF"
     keywords: list[str] = field(default_factory=list)
@@ -430,6 +430,9 @@ def frame(artist: Artist, variant: str, t: float) -> Image.Image:
     # Oversized background plane + a foreground plane that drifts against it: the
     # two planes are what the caml writer turns into depth travel.
     zoom = 1.10 if variant == "parallax" else 1.04
+    if variant == "live":
+        # a breathing zoom: the frame pushes in and settles, once per loop
+        zoom = 1.05 + 0.035 * math.sin(phase * 2 * math.pi)
     back = back.resize((int(W * zoom), int(H * zoom)), Image.LANCZOS)
     dx = int(math.sin(phase * 2 * math.pi) * 18)
     dy = int(math.cos(phase * 2 * math.pi) * 14)
@@ -473,7 +476,7 @@ def frame(artist: Artist, variant: str, t: float) -> Image.Image:
         d.text(((W - (box[2] - box[0])) / 2, rule_y + 32), caption, font=small,
                fill=(255, 255, 255, 120))
 
-    if variant == "animated":
+    if variant in ("animated", "live"):
         # a sweep of light across the frame, once per loop
         sweep_x = int(lerp(-300, W + 300, phase))
         beam = Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -481,6 +484,15 @@ def frame(artist: Artist, variant: str, t: float) -> Image.Image:
             [(sweep_x, 0), (sweep_x + 220, 0), (sweep_x - 160, H), (sweep_x - 380, H)],
             fill=(*artist.accent_rgb, 26))
         canvas = Image.alpha_composite(canvas, beam.filter(ImageFilter.GaussianBlur(40)))
+
+    if variant == "live":
+        # a glow that breathes with the zoom, so the motion reads even where the
+        # art is dark
+        pulse = 0.5 - 0.5 * math.cos(phase * 2 * math.pi)
+        canvas = Image.alpha_composite(
+            canvas,
+            radial((W, H), (W // 2, int(H * 0.42)), W * 1.1,
+                   artist.accent_rgb, 0.10 + 0.16 * pulse))
 
     canvas = vignette(canvas.convert("RGB"), 0.5)
     return grain(canvas, 2.6, seed=int(t * 1000)).convert("RGB")
@@ -535,6 +547,7 @@ def main() -> int:
     parser.add_argument("--probe", metavar="DIR", nargs="?", const="Originals/Probe",
                         help="write one still per pack instead of encoding")
     parser.add_argument("--only", help="comma-separated slugs")
+    parser.add_argument("--variant", help="only this motion (parallax, animated, live)")
     args = parser.parse_args()
 
     wanted = args.only.split(",") if args.only else [a.slug for a in ARTISTS]
@@ -558,6 +571,8 @@ def main() -> int:
             continue
         setup(artist)
         for variant in artist.variants:
+            if args.variant and variant != args.variant:
+                continue
             encode(artist, variant)
     print("done —", FRAMES, "frames per clip")
     return 0

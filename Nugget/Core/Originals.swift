@@ -21,11 +21,21 @@ struct OriginalClip: Identifiable, Hashable {
     enum Motion: String, Hashable {
         case parallax
         case animated
+        case live
 
         var label: String {
             switch self {
             case .parallax: "Gyro"
             case .animated: "Animated"
+            case .live: "Live"
+            }
+        }
+
+        var symbol: String {
+            switch self {
+            case .parallax: "gyroscope"
+            case .animated: "play.circle.fill"
+            case .live: "waveform"
             }
         }
 
@@ -35,6 +45,8 @@ struct OriginalClip: Identifiable, Hashable {
                 "Two planes, so the art shifts against itself when the phone moves."
             case .animated:
                 "A seamless loop — light, smoke and dust move across a still frame."
+            case .live:
+                "A breathing frame: the art pushes in and the light swells with it."
             }
         }
     }
@@ -110,6 +122,16 @@ enum Originals {
                      tag: "Compton", motion: .parallax, accent: "#E23B3B"),
         OriginalClip(slug: "dre", artist: "Dr. Dre", title: "Chrome Arcs",
                      tag: "Studio", motion: .animated, accent: "#E8ECF2"),
+        OriginalClip(slug: "2pac", artist: "2Pac", title: "Cali Love",
+                     tag: "Sunset", motion: .live, accent: "#E23B3B"),
+        OriginalClip(slug: "blamian", artist: "Blamian", title: "Afterglow",
+                     tag: "Neon", motion: .live, accent: "#22D3EE"),
+        OriginalClip(slug: "biggie", artist: "Biggie", title: "Skyline",
+                     tag: "Brooklyn", motion: .live, accent: "#C9A227"),
+        OriginalClip(slug: "snoop", artist: "Snoop", title: "Long Beach",
+                     tag: "Coast", motion: .live, accent: "#7BE495"),
+        OriginalClip(slug: "dre", artist: "Dr. Dre", title: "Headphones",
+                     tag: "Studio", motion: .live, accent: "#E8ECF2"),
     ]
 
     static let presets: [OriginalPreset] = [
@@ -143,6 +165,31 @@ enum Originals {
                                  "SBDisableLiveIcons",
                                  "SBDisableIconFlyInAnimation",
                                  "SBDismissControlCenterElsewhereOnPresentation"]),
+        OriginalPreset(slug: "2pac-night", name: "2Pac — After Hours",
+                       blurb: "Evening set: no icon fly-in, full app names, and the frost taken out of the glass so dark wallpapers stay dark.",
+                       toggles: ["SBDisableIconFlyInAnimation",
+                                 "SBSuppressAppShortcutTruncation",
+                                 "SolariumNoBlurReducedFrost"]),
+        OriginalPreset(slug: "blamian-night", name: "Blamian — Midnight Chrome",
+                       blurb: "Neon on black: static icons, the outer glass effect on, and the old glass drawing method so nothing blooms.",
+                       toggles: ["SBDisableLiveIcons",
+                                 "SolariumEnableHomeScreenExteriorEffects",
+                                 "ForceSolariumFallback"]),
+        OriginalPreset(slug: "biggie-night", name: "Biggie — Night Shift",
+                       blurb: "Lock screen quiet: adaptive clock sizing, batteries widget offered, recents out of the dock.",
+                       toggles: ["SBCoverSheetProportionalAdaptiveTime",
+                                 "SBBatteryWidgetAlwaysAvailable",
+                                 "SBRecentsEnabled"]),
+        OriginalPreset(slug: "snoop-night", name: "Snoop — Smoke Session",
+                       blurb: "Nothing moves: page dots still, icon fly-in off, longer press on notifications.",
+                       toggles: ["SBDisableParallaxOnPageControl",
+                                 "SBDisableIconFlyInAnimation",
+                                 "SBAlwaysAllowLongLookGesture"]),
+        OriginalPreset(slug: "dre-night", name: "Dre — In the Lab",
+                       blurb: "Studio quiet: signal reading shown, Control Center closes when you tap outside it, static icons.",
+                       toggles: ["SBShowRSSI",
+                                 "SBDismissControlCenterElsewhereOnPresentation",
+                                 "SBDisableLiveIcons"]),
     ]
 
     /// Thumbnails, decoded once.  A `List` row is re-evaluated on every scroll
