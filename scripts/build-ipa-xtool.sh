@@ -14,7 +14,7 @@
 # once the headers match, or on a toolchain new enough not to need it.
 #
 # Usage: ./scripts/build-ipa-xtool.sh [--clean]
-# Output: xtool/GoldenNuggetMobile.ipa, repacked in place
+# Output: xtool/wowser-ios.ipa, repacked in place
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -33,6 +33,6 @@ bash scripts/compile-assets.sh
 echo "building with xtool"
 xtool dev build -c release -i
 
-python3 scripts/repack-ipa.py xtool/GoldenNuggetMobile.ipa
+python3 scripts/repack-ipa.py xtool/wowser-ios.ipa
 
-echo "done: xtool/GoldenNuggetMobile.ipa"
+echo "done: xtool/wowser-ios.ipa"

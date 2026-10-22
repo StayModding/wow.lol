@@ -1,7 +1,7 @@
 #!/bin/zsh
 # Build an unsigned device IPA from the Xcode project.
 # Usage: ./scripts/build-ipa.sh [Debug|Release] [--clean]   (default: Release)
-# Output: build/GoldenNuggetMobile.ipa (unsigned — sideload via AltStore/SideStore/LiveContainer)
+# Output: build/wowser-ios.ipa (unsigned — sideload via AltStore/SideStore/LiveContainer)
 #
 # --clean wipes build/xderived first.  Reach for it after touching anything
 # under Vendor/: an incremental build can refresh a .swiftmodule WITHOUT
@@ -24,10 +24,10 @@ done
 # A failed build must never leave yesterday's IPA at the advertised path.
 # Preserve the previous success under an explicitly historical name instead.
 mkdir -p build
-if [[ -f build/GoldenNuggetMobile.ipa ]]; then
+if [[ -f build/wowser-ios.ipa ]]; then
   mkdir -p build/previous
   previous="build/previous/GoldenNuggetMobile-$(date +%Y%m%d-%H%M%S)-$$.ipa"
-  mv build/GoldenNuggetMobile.ipa "$previous"
+  mv build/wowser-ios.ipa "$previous"
   echo "previous IPA preserved: $previous"
 fi
 
@@ -64,7 +64,7 @@ if [ -n "$stale" ]; then
 fi
 
 mkdir -p build
-rm -rf build/Payload build/GoldenNuggetMobile.ipa
+rm -rf build/Payload build/wowser-ios.ipa
 mkdir -p build/Payload
 cp -R "$APP_PATH" build/Payload/GoldenNuggetMobile.app
 
@@ -98,8 +98,8 @@ for macho in build/Payload/GoldenNuggetMobile.app/GoldenNuggetMobile \
   fi
 done
 
-(cd build && zip -qry GoldenNuggetMobile.ipa Payload)
-python3 scripts/repack-ipa.py build/GoldenNuggetMobile.ipa
+(cd build && zip -qry wowser-ios.ipa Payload)
+python3 scripts/repack-ipa.py build/wowser-ios.ipa
 rm -rf build/Payload
 
-echo "done: build/GoldenNuggetMobile.ipa (unsigned, ${CONFIG})"
+echo "done: build/wowser-ios.ipa (unsigned, ${CONFIG})"

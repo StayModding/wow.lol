@@ -103,6 +103,27 @@ furniture plus one bar of the app's:
   symbol filled, the way a system tab bar marks one, and the label sits under the
   icon instead of beside it.
 
+### Four more pages (`Nugget/Views/ToolPages.swift`)
+
+The dock now carries seventeen sections.  What was added is not new machinery —
+it is machinery that already existed in the core and had no page:
+
+* **Originals** — the five artist packs, one section each, at a size where the
+  artwork reads.  Choosing one only sets the video choice; PosterBoard's Apply
+  still delivers it, and the page has a button that goes there.
+* **History** — `ApplyHistory`'s own record list, newest first, with the device
+  each operation went to and the error if it failed.  Clearable.
+* **Diagnostics** — the device line, whether the protective backup is encrypted,
+  and `Diagnostics.report()` on the page with Copy and Share.
+* **Log** — the run log full screen, selectable, shareable, clearable.
+
+### The artefact
+
+The workflow's artifact and the IPA are both named **`wowser-ios`** now
+(`wowser-ios.ipa`).  The bundle, its executable and the Xcode project keep their
+names: `lol.wow.mobile` is what an upgrade has to match, and renaming the target
+would be a different app with a different container.
+
 ### Deliberately left alone
 
 * Internal Swift symbols, `PRODUCT_NAME`, the `.xcodeproj`/scheme and the CI

@@ -86,6 +86,9 @@ enum Originals {
             ?? Bundle.main.url(forResource: name, withExtension: ext, subdirectory: "Thumbs")
     }
 
+    /// The packs, in the order the generator numbers them.
+    static let artists = ["2Pac", "Blamian", "Biggie", "Snoop", "Dr. Dre"]
+
     static let clips: [OriginalClip] = [
         OriginalClip(slug: "2pac", artist: "2Pac", title: "Thug Life",
                      tag: "West Side", motion: .parallax, accent: "#E23B3B"),

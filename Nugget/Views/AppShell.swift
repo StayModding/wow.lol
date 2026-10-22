@@ -29,6 +29,7 @@ enum AppDestination: String, CaseIterable, Identifiable, Hashable {
     case home
     case tweaks
     case presets
+    case originals
     case community
     case posterBoard
     case templates
@@ -39,6 +40,9 @@ enum AppDestination: String, CaseIterable, Identifiable, Hashable {
     case daemons
     case media
     case files
+    case history
+    case diagnostics
+    case log
     case settings
 
     var id: String { rawValue }
@@ -65,6 +69,7 @@ enum AppDestination: String, CaseIterable, Identifiable, Hashable {
         case .home: "wow.lol"
         case .tweaks: "Tweaks"
         case .presets: "Presets"
+        case .originals: "Originals"
         case .community: "Community Catalog"
         case .posterBoard: "PosterBoard"
         case .templates: "Templates"
@@ -75,6 +80,9 @@ enum AppDestination: String, CaseIterable, Identifiable, Hashable {
         case .daemons: "Daemons"
         case .media: "Media"
         case .files: "Files"
+        case .history: "History"
+        case .diagnostics: "Diagnostics"
+        case .log: "Run Log"
         case .settings: "Settings"
         }
     }
@@ -86,6 +94,7 @@ enum AppDestination: String, CaseIterable, Identifiable, Hashable {
         case .home: "Home"
         case .tweaks: "Tweaks"
         case .presets: "Presets"
+        case .originals: "Originals"
         case .community: "Community"
         case .posterBoard: "PosterBoard"
         case .templates: "Templates"
@@ -96,6 +105,9 @@ enum AppDestination: String, CaseIterable, Identifiable, Hashable {
         case .daemons: "Daemons"
         case .media: "Media"
         case .files: "Files"
+        case .history: "History"
+        case .diagnostics: "Diag"
+        case .log: "Log"
         case .settings: "Settings"
         }
     }
@@ -105,6 +117,7 @@ enum AppDestination: String, CaseIterable, Identifiable, Hashable {
         case .home: "house"
         case .tweaks: "slider.horizontal.3"
         case .presets: "tray.2"
+        case .originals: "sparkles"
         case .community: "square.grid.2x2"
         case .posterBoard: "photo.artframe"
         case .templates: "slider.horizontal.below.rectangle"
@@ -115,6 +128,9 @@ enum AppDestination: String, CaseIterable, Identifiable, Hashable {
         case .daemons: "server.rack"
         case .media: "photo.on.rectangle"
         case .files: "folder"
+        case .history: "clock.arrow.circlepath"
+        case .diagnostics: "stethoscope"
+        case .log: "text.alignleft"
         case .settings: "gearshape"
         }
     }
@@ -370,6 +386,9 @@ struct RootView: View {
             TweaksView(selection: $tweakSelection)
         case .presets:
             PresetManagerView(selection: $tweakSelection)
+        case .originals:
+            OriginalsView(posterBoardSelection: $posterBoardSelection,
+                          openPosterBoard: { select(.posterBoard) })
         case .community:
             CommunityCatalogView()
         case .posterBoard:
@@ -390,6 +409,12 @@ struct RootView: View {
             MediaView()
         case .files:
             FilesView()
+        case .history:
+            HistoryView()
+        case .diagnostics:
+            DiagnosticsView()
+        case .log:
+            LogView()
         case .settings:
             SettingsView()
         }

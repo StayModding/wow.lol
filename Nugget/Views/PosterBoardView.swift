@@ -68,7 +68,6 @@ struct PosterBoardView: View {
 
     var body: some View {
         List {
-            originalsSection
             deviceSection
             applyModeSection
             // AirLift writes the descriptors into the container and never looks
@@ -113,93 +112,6 @@ struct PosterBoardView: View {
                 deviceVersion: identity.version, buildVersion: identity.buildVersion)
         }
         .legacyConvertPrompt($legacyPrompt, answer: answerLegacyPrompt)
-    }
-
-    // MARK: - Originals
-
-    /// The bundled packs, as a shelf of posters.
-    ///
-    /// A horizontal shelf rather than a row per clip: ten clips as list rows is
-    /// a page of scrolling before the page's own controls, and the artwork is the
-    /// only thing that says what a pack sounds like.
-    private var originalsSection: some View {
-        Section("wow.lol Originals") {
-            ScrollView(.horizontal) {
-                HStack(spacing: 12) {
-                    ForEach(Originals.clips) { clip in
-                        Button {
-                            installOriginal(clip)
-                        } label: {
-                            originalCard(clip)
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(running)
-                        .accessibilityLabel("\(clip.artist), \(clip.title), \(clip.motion.label) wallpaper")
-                    }
-                }
-                .padding(.vertical, 4)
-            }
-            .scrollIndicators(.hidden)
-            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 8, trailing: 16))
-            NativeNote("Art drawn for wow.lol — posters, not photographs. Gyro cuts are built on two "
-                + "planes and move against themselves when the phone tilts; animated cuts loop. Tap one "
-                + "to choose it, then Apply below.")
-        }
-    }
-
-    private func originalCard(_ clip: OriginalClip) -> some View {
-        VStack(alignment: .leading, spacing: 7) {
-            ZStack(alignment: .topLeading) {
-                Group {
-                    if let image = Originals.thumbnail(for: clip) {
-                        Image(uiImage: image)
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                    } else {
-                        LinearGradient(colors: [Color.secondary.opacity(0.35), Color.secondary.opacity(0.12)],
-                                       startPoint: .top, endPoint: .bottom)
-                    }
-                }
-                .frame(width: 132, height: 226)
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .strokeBorder(.white.opacity(0.12), lineWidth: 0.8)
-                }
-
-                HStack(spacing: 4) {
-                    Image(systemName: clip.motion == .parallax ? "gyroscope" : "play.circle.fill")
-                        .font(.system(size: 9, weight: .bold))
-                    Text(clip.motion.label.uppercased())
-                        .font(.system(size: 9, weight: .heavy))
-                        .kerning(0.6)
-                }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 7)
-                .padding(.vertical, 4)
-                .background(.black.opacity(0.35), in: Capsule())
-                .padding(9)
-            }
-            VStack(alignment: .leading, spacing: 1) {
-                Text(clip.title)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                Text(clip.artist)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-            .frame(width: 132, alignment: .leading)
-        }
-        .opacity(running ? 0.55 : 1)
-    }
-
-    private func installOriginal(_ clip: OriginalClip) {
-        guard !running else { return }
-        status = Originals.install(clip, into: &selection)
-        statusTone = .secondary
-        RunLog.shared.append("Originals: \(clip.artist) — \(clip.title) (\(clip.motion.rawValue)).")
     }
 
     // MARK: - The legacy-format answer

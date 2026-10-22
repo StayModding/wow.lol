@@ -47,7 +47,7 @@ jobs:
           xcodegen generate
 
       # The only supported build path.  It drives GoldenNuggetMobile.xcodeproj
-      # through xcodebuild and packages build/GoldenNuggetMobile.ipa; the same
+      # through xcodebuild and packages build/wowser-ios.ipa; the same
       # script is what the local workflow runs, so CI and the host cannot
       # drift apart.
       - name: Build IPA
@@ -56,8 +56,8 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: GoldenNuggetMobile
-          path: build/GoldenNuggetMobile.ipa
+          name: wowser-ios
+          path: build/wowser-ios.ipa
           if-no-files-found: error
 
 # Manual rebuild trigger
