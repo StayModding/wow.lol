@@ -162,6 +162,7 @@ enum PosterBoardVideo {
                             caDirectory: ca,
                             calculationMode: plan.calculationMode.rawValue,
                             reverse: plan.reverse,
+                            depth: plan.depth,
                             log: log)
     }
 
@@ -170,6 +171,7 @@ enum PosterBoardVideo {
                                   caDirectory: URL,
                                   calculationMode: String,
                                   reverse: Bool,
+                                  depth: PosterBoardDepth,
                                   log: @escaping @Sendable (String) -> Void) async throws {
         let asset = AVURLAsset(url: video)
         guard let track = try await asset.loadTracks(withMediaType: .video).first else {
@@ -217,7 +219,7 @@ enum PosterBoardVideo {
         let docWidth = screen.width
         let docHeight = screen.height
         let cover = max(Double(docWidth) / Double(width), Double(docHeight) / Double(height))
-        let layerScale = cover * plan.depth.scale
+        let layerScale = cover * depth.scale
         let centerX = Double(docWidth) / 2
         let centerY = Double(docHeight) / 2
         // The layer is published by name, and `index.xml` has to name the same
