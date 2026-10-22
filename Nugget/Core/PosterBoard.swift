@@ -154,6 +154,9 @@ struct PosterBoardSelection {
     var reverse = false
     var foreground = false
     var calculationMode: PosterBoardCalculationMode = .linear
+    /// Depth travel for the video wallpaper.  Only meaningful on iOS 27's depth
+    /// effect; elsewhere the overscan is simply a slightly tighter crop.
+    var depth: PosterBoardDepth = .deep
 
     /// A reset is a one-shot instruction, so it is deliberately **not** persisted: a
     /// "Full Reset" that survived a launch would be a loaded gun. Upstream holds it in
@@ -183,7 +186,8 @@ struct PosterBoardSelection {
                                     loop: loop,
                                     reverse: reverse,
                                     foreground: foreground,
-                                    calculationMode: calculationMode)
+                                    calculationMode: calculationMode,
+                                    depth: depth)
     }
 
     /// The reference's own summary of what an apply will carry, for the log.

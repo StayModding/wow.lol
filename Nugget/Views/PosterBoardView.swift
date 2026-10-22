@@ -425,6 +425,7 @@ struct PosterBoardView: View {
                 importMedia(result, into: PosterBoard.videoDirectory) { selection.video = $0 }
             }
             Toggle("Loop (CoreAnimation frame list)", isOn: $selection.loop)
+            depthRow
             if selection.loop {
                 Toggle("Reverse on loop", isOn: $selection.reverse)
                 Toggle("Cover the clock", isOn: $selection.foreground)
@@ -463,10 +464,25 @@ struct PosterBoardView: View {
 
     /// Four options in one row is 288 pt of text at the narrowest window width,
     /// so this is a menu: it keeps its value on screen instead of wrapping.
+    ///
+    /// The tag is the case itself, not its raw value: SwiftUI matches a tag to
+    /// the selection by type, so a `String` tag against an enum selection never
+    /// matches and the menu shows whichever row it happened to render first.
     private var calculationModeRow: some View {
         Picker("Calculation mode", selection: $selection.calculationMode) {
             ForEach(PosterBoardCalculationMode.allCases) { mode in
-                Text(mode.title).tag(mode.rawValue)
+                Text(mode.title).tag(mode)
+            }
+        }
+    }
+
+    /// The gyro knob.  It is a property of the caml's layer geometry, not of the
+    /// video, so it is on every video — the Originals' gyro cuts are simply the
+    /// ones drawn to look right when it is working.
+    private var depthRow: some View {
+        Picker("Depth travel", selection: $selection.depth) {
+            ForEach(PosterBoardDepth.allCases) { depth in
+                Text(depth.title).tag(depth)
             }
         }
     }
@@ -487,6 +503,13 @@ struct PosterBoardView: View {
                 + "and needs a freeze frame — the reference raises rather than shipping a "
                 + "descriptor with no thumbnail. The video is rewrapped as .mov unless it "
                 + "already is one.")
+        }
+        if selection.depth != .flat {
+            lines.append("Depth travel makes the animation layer larger than the screen, "
+                + "which is what iOS's depth effect moves when the phone tilts — "
+                + "\(selection.depth.title.lowercased()), \(selection.depth.detail). The "
+                + "cost is a tighter crop; on a build without the depth effect it is only "
+                + "the crop.")
         }
         if selection.loop && selection.reverse {
             lines.append("Reverse on loop plays the clip forwards and then backwards.")

@@ -13,21 +13,25 @@ import UIKit
 ///   * a **preset** — a real tweak selection, written through the app's own
 ///     preset serialiser so it round-trips exactly like one the user saved.
 ///
-/// The `parallax` cuts are the "gyro" ones.  Their art is drawn on two planes,
-/// foreground against an oversized background, and the caml the video path
-/// writes places the layer off-centre and scaled — which is the travel
-/// PosterKit's depth effect moves against.
+/// The `parallax` and `gyro` cuts are the ones with depth.  Their art is drawn on
+/// two planes, foreground against an oversized background, and the caml the
+/// video path writes places the layer off-centre and scaled — which is the
+/// travel PosterKit's depth effect moves against.  The `gyro` cut is the hybrid:
+/// those planes *plus* the live motion, so the wallpaper breathes on its own and
+/// shifts under the tilt.
 struct OriginalClip: Identifiable, Hashable {
     enum Motion: String, Hashable {
         case parallax
         case animated
         case live
+        case gyro
 
         var label: String {
             switch self {
             case .parallax: "Gyro"
             case .animated: "Animated"
             case .live: "Live"
+            case .gyro: "Gyro + Live"
             }
         }
 
@@ -36,6 +40,7 @@ struct OriginalClip: Identifiable, Hashable {
             case .parallax: "gyroscope"
             case .animated: "play.circle.fill"
             case .live: "waveform"
+            case .gyro: "move.3d"
             }
         }
 
@@ -47,8 +52,13 @@ struct OriginalClip: Identifiable, Hashable {
                 "A seamless loop — light, smoke and dust move across a still frame."
             case .live:
                 "A breathing frame: the art pushes in and the light swells with it."
+            case .gyro:
+                "Both at once: the depth planes travel under the tilt while the frame itself breathes, sweeps and glows."
             }
         }
+
+        /// Whether the cut carries the two-plane art the depth effect reads.
+        var hasDepth: Bool { self == .parallax || self == .gyro }
     }
 
     let slug: String
@@ -132,6 +142,53 @@ enum Originals {
                      tag: "Coast", motion: .live, accent: "#7BE495"),
         OriginalClip(slug: "dre", artist: "Dr. Dre", title: "Headphones",
                      tag: "Studio", motion: .live, accent: "#E8ECF2"),
+        // The hybrids: the same art as the two cuts above, moving on its own
+        // *and* under the tilt — a copy of the wallpaper, but not a copy of the
+        // clip.  Every pack has one, in both designs.
+        OriginalClip(slug: "2pac", artist: "2Pac", title: "Thug Life Live",
+                     tag: "Gyro + Live", motion: .gyro, accent: "#E23B3B"),
+        OriginalClip(slug: "blamian", artist: "Blamian", title: "No Skip Live",
+                     tag: "Gyro + Live", motion: .gyro, accent: "#22D3EE"),
+        OriginalClip(slug: "biggie", artist: "Biggie", title: "King of New York Live",
+                     tag: "Gyro + Live", motion: .gyro, accent: "#C9A227"),
+        OriginalClip(slug: "snoop", artist: "Snoop", title: "Dogg Pound Live",
+                     tag: "Gyro + Live", motion: .gyro, accent: "#7BE495"),
+        OriginalClip(slug: "dre", artist: "Dr. Dre", title: "Still D.R.E. Live",
+                     tag: "Gyro + Live", motion: .gyro, accent: "#E8ECF2"),
+        // The crest design: a monogram in a ring rather than the wordmark.  Two
+        // cuts each — the gyro one for the tilt, the live one for the breathing
+        // zoom — because a second design is a second wallpaper, not a second
+        // animation of the same one.
+        OriginalClip(slug: "2pac-b", artist: "2Pac", title: "Crest",
+                     tag: "Monogram", motion: .parallax, accent: "#E23B3B"),
+        OriginalClip(slug: "2pac-b", artist: "2Pac", title: "Crest After Dark",
+                     tag: "Monogram", motion: .live, accent: "#E23B3B"),
+        OriginalClip(slug: "blamian-b", artist: "Blamian", title: "Crest",
+                     tag: "Monogram", motion: .parallax, accent: "#22D3EE"),
+        OriginalClip(slug: "blamian-b", artist: "Blamian", title: "Crest After Dark",
+                     tag: "Monogram", motion: .live, accent: "#22D3EE"),
+        OriginalClip(slug: "biggie-b", artist: "Biggie", title: "Crest",
+                     tag: "Monogram", motion: .parallax, accent: "#C9A227"),
+        OriginalClip(slug: "biggie-b", artist: "Biggie", title: "Crest After Dark",
+                     tag: "Monogram", motion: .live, accent: "#C9A227"),
+        OriginalClip(slug: "snoop-b", artist: "Snoop", title: "Crest",
+                     tag: "Monogram", motion: .parallax, accent: "#7BE495"),
+        OriginalClip(slug: "snoop-b", artist: "Snoop", title: "Crest After Dark",
+                     tag: "Monogram", motion: .live, accent: "#7BE495"),
+        OriginalClip(slug: "dre-b", artist: "Dr. Dre", title: "Crest",
+                     tag: "Monogram", motion: .parallax, accent: "#E8ECF2"),
+        OriginalClip(slug: "dre-b", artist: "Dr. Dre", title: "Crest After Dark",
+                     tag: "Monogram", motion: .live, accent: "#E8ECF2"),
+        OriginalClip(slug: "2pac-b", artist: "2Pac", title: "Crest Live",
+                     tag: "Gyro + Live", motion: .gyro, accent: "#E23B3B"),
+        OriginalClip(slug: "blamian-b", artist: "Blamian", title: "Crest Live",
+                     tag: "Gyro + Live", motion: .gyro, accent: "#22D3EE"),
+        OriginalClip(slug: "biggie-b", artist: "Biggie", title: "Crest Live",
+                     tag: "Gyro + Live", motion: .gyro, accent: "#C9A227"),
+        OriginalClip(slug: "snoop-b", artist: "Snoop", title: "Crest Live",
+                     tag: "Gyro + Live", motion: .gyro, accent: "#7BE495"),
+        OriginalClip(slug: "dre-b", artist: "Dr. Dre", title: "Crest Live",
+                     tag: "Gyro + Live", motion: .gyro, accent: "#E8ECF2"),
     ]
 
     static let presets: [OriginalPreset] = [
@@ -185,6 +242,89 @@ enum Originals {
                        toggles: ["SBDisableParallaxOnPageControl",
                                  "SBDisableIconFlyInAnimation",
                                  "SBAlwaysAllowLongLookGesture"]),
+        OriginalPreset(slug: "2pac-essentials", name: "2Pac — Essentials",
+                       blurb: "The four that matter on a home screen: no fly-in, still page dots, the search button gone, real signal reading.",
+                       toggles: ["SBDisableIconFlyInAnimation",
+                                 "SBDisableParallaxOnPageControl",
+                                 "SBHideSearchAffordance",
+                                 "SBShowRSSI"]),
+        OriginalPreset(slug: "2pac-quiet", name: "2Pac — Quiet Hours",
+                       blurb: "Nothing to look at: low-battery and charging notices off, no return-to-app shortcut in the corner, lock-screen notifications hidden.",
+                       toggles: ["SBHideLowPowerAlerts",
+                                 "SBHideACPower",
+                                 "SBNeverBreadcrumb",
+                                 "SBHideNotifications"]),
+        OriginalPreset(slug: "blamian-clean", name: "Blamian — Clean Slate",
+                       blurb: "Every outline and shadow taken off the glass: icon outlines, folder shine, widget shine, search-button shadow.",
+                       toggles: ["DisableIconGlassOutline",
+                                 "DisableFolderSpecular",
+                                 "DisableWidgetSpecular",
+                                 "ExcludeSearchShadow"]),
+        OriginalPreset(slug: "blamian-depth", name: "Blamian — Depth",
+                       blurb: "Glass that answers the light: lighting from the phone's angle, stronger reflections, softer diffusion, and still reflections.",
+                       toggles: ["SolariumUseDisplayAngle",
+                                 "ForceEnhancedSpeculars",
+                                 "SolariumIncreasedDiffusion",
+                                 "DisableSpecularMotion"]),
+        OriginalPreset(slug: "biggie-dock", name: "Biggie — Dock Only",
+                       blurb: "A dock that holds apps: recents and the App Library out, its glass and shine taken off.",
+                       toggles: ["SBRecentsEnabled",
+                                 "SBAppLibraryInDockEnabled",
+                                 "NoLiquidDock",
+                                 "DisableDockSpecular"]),
+        OriginalPreset(slug: "biggie-clock", name: "Biggie — Clockwork",
+                       blurb: "Lock screen clock: adaptive sizing, no glass, no second hand on the clock icon, and the motion shortcuts off.",
+                       toggles: ["SBCoverSheetProportionalAdaptiveTime",
+                                 "NoLiquidClock",
+                                 "DisableSecondsHand",
+                                 "SBCoverSheetDisableDeviceMotionEffectPerformanceOptimizations"]),
+        OriginalPreset(slug: "snoop-focus", name: "Snoop — Focus",
+                       blurb: "One app at a time: notifications and the Dynamic Island gone, no return-to-app chip, no Home Screen search button.",
+                       toggles: ["SBHideNotifications",
+                                 "HideDICompletely",
+                                 "SBNeverBreadcrumb",
+                                 "SBHideSearchAffordance"]),
+        OriginalPreset(slug: "snoop-standby", name: "Snoop — StandBy",
+                       blurb: "StandBy on a desk: it runs without a charger, wakes to a tap, and the image brightness limit comes off.",
+                       toggles: ["AMAmbientIgnoreBatteryCharging",
+                                 "SBAlwaysOnTapToInteract",
+                                 "SBUseAlwaysOnBrightnessCurve",
+                                 "SBEnforceOverallAPLLimit"]),
+        OriginalPreset(slug: "dre-mono", name: "Dre — Monochrome",
+                       blurb: "Flat and quiet: flat icons, no reflections anywhere, no edge distortion, no icon outlines.",
+                       toggles: ["UseFlatIconsEverywhere",
+                                 "DisableSpecularEverywhere",
+                                 "DisableOuterRefraction",
+                                 "DisableIconGlassOutline"]),
+        OriginalPreset(slug: "dre-frame-rate", name: "Dre — Frame Rate",
+                       blurb: "Less work per frame: no live icons, no widget snapshotting, and temporary screen images released as soon as they are done.",
+                       toggles: ["SBDisableLiveIcons",
+                                 "SBWidgetSnapshottingEnabled",
+                                 "SBDisableAsyncRenderingSurfaceRetention"]),
+        OriginalPreset(slug: "2pac-studio", name: "2Pac — Studio Session",
+                       blurb: "Everything still, nothing blooming: parity for the page dots and the icons, and the glass drawn flat.",
+                       toggles: ["SBDisableParallaxOnPageControl",
+                                 "SBDisableLiveIcons",
+                                 "ForceSolariumFallback"]),
+        OriginalPreset(slug: "blamian-bright", name: "Blamian — Daylight",
+                       blurb: "Full glass: the outer home-screen effect on, brighter highlights kept, icons frozen in place.",
+                       toggles: ["SolariumEnableHomeScreenExteriorEffects",
+                                 "SBDisableIconFlyInAnimation"]),
+        OriginalPreset(slug: "biggie-royal", name: "Biggie — Royal",
+                       blurb: "Dock and lock screen: recents out, batteries widget offered, clock sizing adaptive.",
+                       toggles: ["SBRecentsEnabled",
+                                 "SBBatteryWidgetAlwaysAvailable",
+                                 "SBCoverSheetProportionalAdaptiveTime"]),
+        OriginalPreset(slug: "snoop-cruise", name: "Snoop — Cruise",
+                       blurb: "Signal and shortcuts: the reading shown, long app names, longer notification presses.",
+                       toggles: ["SBShowRSSI",
+                                 "SBSuppressAppShortcutTruncation",
+                                 "SBAlwaysAllowLongLookGesture"]),
+        OriginalPreset(slug: "dre-master", name: "Dre — Master",
+                       blurb: "Reference chain: no frost, no icon motion, Control Center closes when you tap away.",
+                       toggles: ["SolariumNoBlurReducedFrost",
+                                 "SBDisableIconFlyInAnimation",
+                                 "SBDismissControlCenterElsewhereOnPresentation"]),
         OriginalPreset(slug: "dre-night", name: "Dre — In the Lab",
                        blurb: "Studio quiet: signal reading shown, Control Center closes when you tap outside it, static icons.",
                        toggles: ["SBShowRSSI",
@@ -220,26 +360,44 @@ enum Originals {
             selection.video = try PosterBoard.store(url, in: PosterBoard.videoDirectory)
             selection.thumbnail = nil
             selection.loop = true
-            selection.reverse = clip.motion == .parallax
+            selection.reverse = clip.motion.hasDepth
             selection.foreground = false
             selection.calculationMode = .linear
+            // A gyro cut with the depth travel turned off is a flat poster with
+            // motion baked in; picking one is a request for the tilt as well.
+            if clip.motion.hasDepth { selection.depth = .deep }
             return "\(clip.artist) — \(clip.title) is selected. Press Apply on Home to put it on the Lock Screen."
         } catch {
             return error.localizedDescription
         }
     }
 
-    /// Writes the five presets into the preset folder, once.
+    /// Writes the presets into the preset folder, once each.
     ///
-    /// Once, not "if missing": a preset the user deleted on purpose must stay
-    /// deleted.  The flag is per install, and a reinstall seeds them again.
-    static let seededKey = "wow.lol.originals.presets.v1"
+    /// Per preset, not per install: the list grows with every build, and a single
+    /// "have I seeded yet" flag meant a pack added later never reached a device
+    /// that had already run an older build.  A preset the user deleted is still
+    /// left deleted, because its slug stays in the seeded set.
+    static let seededKey = "wow.lol.originals.presets.v2"
+
+    /// The first release's flag, when the list was ten presets and the record was
+    /// one boolean.  An install that has it is treated as having seeded exactly
+    /// those ten, so the ones added since are the only ones it is missing.
+    static let legacySeededKey = "wow.lol.originals.presets.v1"
+
+    private static let legacySlugs: Set<String> = [
+        "2pac", "2pac-night", "blamian", "blamian-night", "biggie",
+        "biggie-night", "snoop", "snoop-night", "dre", "dre-night",
+    ]
 
     @discardableResult
     static func seedPresetsIfNeeded(defaults: UserDefaults = .standard) -> Int {
-        guard !defaults.bool(forKey: seededKey) else { return 0 }
+        var seeded = Set(defaults.stringArray(forKey: seededKey) ?? [])
+        if defaults.bool(forKey: legacySeededKey) {
+            seeded.formUnion(legacySlugs)
+        }
         var written = 0
-        for pack in presets {
+        for pack in presets where !seeded.contains(pack.slug) {
             var selection = TweakSelection()
             for id in pack.toggles {
                 guard let spec = TweakCatalog.byID[id] else { continue }
@@ -255,9 +413,15 @@ enum Originals {
                                                          options: [.prettyPrinted, .sortedKeys]),
                   (try? data.write(to: GoldenNuggetPresets.fileURL(for: pack.name),
                                    options: .atomic)) != nil else { continue }
+            seeded.insert(pack.slug)
             written += 1
         }
-        if written > 0 { defaults.set(true, forKey: seededKey) }
+        if written > 0 {
+            defaults.set(seeded.sorted(), forKey: seededKey)
+            defaults.set(true, forKey: legacySeededKey)
+        }
+        return written
+    }
         return written
     }
 }

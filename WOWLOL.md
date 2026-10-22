@@ -64,31 +64,52 @@ tweaks. Nothing about what the app *does* to a device changed.
 
 ### wow.lol Originals (`Nugget/Core/Originals.swift`)
 
-Five artist packs — 2Pac, Blamian, Biggie, Snoop and Dr. Dre — each with a
-wallpaper and a tweak preset.  Everything is generated for this app by
-`scripts/gen-originals.py`: typographic posters, no photographs and no
-likenesses, drawn with Pillow and encoded to H.264.
+Five artist packs — 2Pac, Blamian, Biggie, Snoop and Dr. Dre — in **two designs
+and four cut types**: thirty-five wallpapers and twenty-five presets.
+Everything is generated for this app by `scripts/gen-originals.py`: typographic
+posters, no photographs and no likenesses, drawn with Pillow and encoded to
+H.264.
 
-* **Wallpapers** are 3-second 1080×1920 loops in `Originals/Clips`, with 540×960
-  thumbnails in `Originals/Thumbs`.  They are **videos**, not `.tendies` packs,
-  because a pack carries a poster descriptor and descriptors can only be built on
-  a device — a video is an input the app already knows how to turn into one
-  (`PosterBoardVideo`).  Tapping a card on the PosterBoard page copies the clip
-  into the app's container as the video choice; the page's Apply delivers it.
-* **Gyro** cuts are drawn on two planes, foreground against an oversized
-  background.  The caml the video path writes puts that layer off-centre and
-  scaled, which is the travel PosterKit's depth effect moves against.  **Animated**
-  cuts keep one plane and animate the art itself (smoke, light sweep, rotating
-  badge).
-* **Presets** are seeded into `Documents/wow.lol/Presets` on first launch by
-  `Originals.seedPresetsIfNeeded`, each written through
-  `GoldenNuggetPresets.document(for:)` from a real `TweakSelection` — so they are
-  byte-identical in shape to a preset the app saves itself, rather than a
-  hand-written JSON that would drift from the catalog.  Deleted ones stay
-  deleted: the seed runs once per install.
+* **Two designs per pack.** *Wordmark* sets the pack name huge over its motif;
+  *Crest* puts one initial in a ring of tick marks with the name underneath, so
+  the second wallpaper looks like a second wallpaper rather than a recolour.
+* **Four cut types**, and every pack has them:
+  * **Gyro** — art drawn on two planes, foreground against an oversized
+    background, drifting against each other;
+  * **Animated** — one plane, with smoke, a light sweep and a rotating badge;
+  * **Live** — a breathing push-in with a glow that swells with it;
+  * **Gyro + Live** — the hybrid: the two planes *and* the breathing frame in
+    the same clip, which is what makes the wallpaper move on its own and under
+    the tilt.  A copy of the wallpaper, not a copy of the clip.
+* **Depth travel** (`PosterBoardDepth`, `PosterBoardView` → *Depth travel*).  iOS
+  only parallaxes a caml layer that is **larger** than the document, so the
+  layer scale is now `cover × depth`: `Flat` 1.0 (the reference's
+  `bounds_scale`), `Subtle` 1.10, `Deep` 1.22 — and `Deep` is the default,
+  because at 1.0 the depth effect has nothing to move.  The cost is a tighter
+  crop, which the art is drawn to survive: the sleeve frame sits 92 px in from
+  a 1080 px edge, so a 22 % overscan never reaches it.
+* **Wallpapers** are 3-second 1080×2340 loops at 24 fps in `Originals/Clips`,
+  with 540×1170 thumbnails in `Originals/Thumbs`.  2340 is 19.5:9 — the shape of
+  a modern iPhone screen — because the caml scales these frames by `cover`: at
+  1080×1920 every wallpaper was blown up 1.33× against an iPhone 15 Pro before
+  the depth overscan was applied on top of that.  They are **videos**, not
+  `.tendies` packs, because a pack carries a poster descriptor and descriptors
+  can only be built on a device — a video is an input the app already knows how
+  to turn into one (`PosterBoardVideo`).  Tapping a card copies the clip into the
+  app's container as the video choice; PosterBoard's Apply delivers it.
+* **Presets**: five per artist — a day set, a night set, and three narrower ones
+  (essentials, dock, focus, glass, StandBy…).  Each is seeded into
+  `Documents/wow.lol/Presets` by `Originals.seedPresetsIfNeeded`, written
+  through `GoldenNuggetPresets.document(for:)` from a real `TweakSelection`, so
+  they are byte-identical in shape to a preset the app saves itself.  Seeding is
+  **per preset slug** (`wow.lol.originals.presets.v2`, with the first release's
+  boolean read as "the original ten"): a pack added in a later build reaches an
+  install that has already run an older one, and a preset the user deleted stays
+  deleted.  Enable-only toggles throughout — a theme that cannot be undone is
+  not a preset.
 * Regenerate with `python scripts/gen-originals.py` (needs Pillow, numpy and
-  ffmpeg — `imageio-ffmpeg` supplies the encoder).  `--probe` writes one still
-  per pack instead of encoding, which is how the art is reviewed.
+  ffmpeg — `imageio-ffmpeg` supplies the encoder); `--probe` writes one still per
+  pack instead of encoding, `--design a|b`, `--variant` and `--only` narrow it.
 
 ### Design, second pass
 
@@ -105,7 +126,7 @@ furniture plus one bar of the app's:
 
 ### Four more pages (`Nugget/Views/ToolPages.swift`)
 
-The dock now carries seventeen sections.  What was added is not new machinery —
+The dock now carries nineteen sections.  What was added is not new machinery —
 it is machinery that already existed in the core and had no page:
 
 * **Originals** — the five artist packs, one section each, at a size where the

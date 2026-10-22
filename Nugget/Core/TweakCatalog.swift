@@ -97,7 +97,7 @@ enum TweakCatalog {
             requires: [],
             exclusiveWith: "ResetSiriAIOverrides",
             unavailableReason: nil,
-            supportedModels: ["iPhone17,1"]
+            supportedModels: []
         ),
         TweakSpec(
             id: "ResetSiriAIOverrides",
@@ -130,7 +130,7 @@ enum TweakCatalog {
             requires: [],
             exclusiveWith: "SiriAI",
             unavailableReason: nil,
-            supportedModels: ["iPhone17,1"]
+            supportedModels: []
         ),
         TweakSpec(
             id: "SBChamoisWindowingEnabled",

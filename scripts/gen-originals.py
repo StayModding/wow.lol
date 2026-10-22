@@ -9,12 +9,15 @@ motif chosen per pack.  Each pack gets two clips:
     oversized background — the PosteBoard video pipeline writes those planes
     with a layer scale and an off-centre position, which is what gives
     PosterKit's depth effect something to travel against (the "gyro" look);
-  * an **animated** cut, where the motif itself moves — smoke, shimmer, scan.
+  * an **animated** cut, where the motif itself moves — smoke, shimmer, scan;
+  * a **live** cut, a breathing push-in with a glow that swells with it;
+  * a **gyro** cut, the hybrid: the depth planes of the parallax cut plus the
+    live motion of the live cut, so it moves on its own and under the tilt.
 
 Outputs, all relative to the repo root:
 
-    Originals/Clips/<slug>-<variant>.mp4      1080x1920, 24 fps, 4 s loop
-    Originals/Thumbs/<slug>-<variant>.jpg     540x960 first frame
+    Originals/Clips/<slug>-<variant>.mp4      1080x2340, 24 fps, 3 s loop
+    Originals/Thumbs/<slug>-<variant>.jpg     540x1170 first frame
 
 Run with --probe to write a single PNG of each pack's still frame instead of
 encoding the clips, which is how the art gets reviewed without waiting for
@@ -37,7 +40,18 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CLIPS = os.path.join(ROOT, "Originals", "Clips")
 THUMBS = os.path.join(ROOT, "Originals", "Thumbs")
 
-W, H = 1080, 1920
+# The canvas is 19.5:9, the shape of every modern iPhone screen, not 16:9.
+# The caml the app writes scales these frames by `cover`, so art that is one
+# aspect ratio taller than the display gets upscaled and then cropped twice —
+# at 1080x1920 an iPhone 15 Pro wallpaper was blown up 1.33x before the depth
+# overscan was even applied.  Matching the screen keeps the frame at 1:1 and
+# leaves the overscan as the only scaling in the chain.
+W, H = 1080, 2340
+
+# Where the type block sits, as a fraction of the frame height.  The Lock Screen
+# clock owns roughly the top third and the widget stack the bottom fifth, so the
+# poster's own block lives just below centre.
+TYPE_Y = 0.55
 FPS = 24
 SECONDS = 3
 FRAMES = FPS * SECONDS
@@ -62,7 +76,7 @@ class Artist:
     tag: str
     motif: str
     palette: tuple[str, str, str]
-    variants: tuple[str, ...] = ("parallax", "animated", "live")
+    variants: tuple[str, ...] = ("parallax", "animated", "live", "gyro")
     note: str = ""
     accent: str = "#FFFFFF"
     keywords: list[str] = field(default_factory=list)
@@ -144,6 +158,11 @@ def mix(c1: str, c2: str, t: float) -> tuple[int, int, int]:
     return tuple(int(round(lerp(a[i], b[i], t))) for i in range(3))
 
 
+def hexof(rgb_value) -> str:
+    """(34, 211, 238) → '#22D3EE'."""
+    return "#%02X%02X%02X" % tuple(int(v) for v in rgb_value)
+
+
 def radial(size, centre, radius, colour, strength=1.0):
     """A soft radial glow as an RGBA layer."""
     w, h = size
@@ -206,6 +225,24 @@ def gradient_text(text, kind, size, colours, size_skew=1.0) -> Image.Image:
     if size_skew != 1.0:
         out = out.resize((int(w * size_skew), h), Image.LANCZOS)
     return out
+
+
+def with_shadow(mark: Image.Image, offset=(0, 16), blur=22, alpha=165) -> Image.Image:
+    """`mark` with a soft dark shadow welded under it.
+
+    Every cut in this set is a light wordmark or initial over a mid-tone field,
+    and a light mark on a mid-tone field is the one combination that reads as
+    flat.  The shadow is the mark's own silhouette, so it follows the glyphs
+    rather than boxing them in.
+    """
+    pad = blur * 2
+    canvas = Image.new("RGBA", (mark.width + pad * 2, mark.height + pad * 2), (0, 0, 0, 0))
+    silhouette = Image.new("RGBA", mark.size, (0, 0, 0, 0))
+    silhouette.paste((0, 0, 0, alpha), (0, 0), mark.split()[3])
+    canvas.alpha_composite(silhouette, (pad + offset[0], pad + offset[1]))
+    canvas = canvas.filter(ImageFilter.GaussianBlur(blur))
+    canvas.alpha_composite(mark, (pad, pad))
+    return canvas
 
 
 def paste_centre(canvas, layer, cy, cx=None, rotate=0.0):
@@ -298,6 +335,36 @@ def wire_field(artist: Artist, phase: float) -> Image.Image:
     return Image.alpha_composite(Image.alpha_composite(base.convert("RGBA"), layer), glow)
 
 
+def crest_field(artist: Artist, phase: float) -> Image.Image:
+    """The second design: a crest, built from rings and tick marks.
+
+    Deliberately not the wordmark again with a different colour — a pack that
+    ships two wallpapers should look like two wallpapers.  This one reads as a
+    sleeve: a big initial inside a ring, the name small underneath.
+    """
+    base = vertical_gradient((W, H), [(0, hexof(mix(artist.palette[0], "#000000", 0.35))),
+                                     (0.5, hexof(mix(artist.palette[1], artist.palette[0], 0.35))),
+                                     (1, "#050507")])
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    cx, cy = W // 2, int(H * 0.42)
+    for k in range(60):
+        a = k * 6 + phase * 40
+        if k % 3 == 0:
+            continue
+        r0, r1 = 330, 360
+        rad = math.radians(a)
+        d.line([(cx + math.cos(rad) * r0, cy + math.sin(rad) * r0),
+                (cx + math.cos(rad) * r1, cy + math.sin(rad) * r1)],
+               fill=(*artist.accent_rgb, 70), width=3)
+    for r, w in ((300, 2), (392, 1)):
+        d.ellipse((cx - r, cy - r, cx + r, cy + r), outline=(*artist.accent_rgb, 46), width=w)
+    d.ellipse((cx - 258, cy - 258, cx + 258, cy + 258),
+              outline=(*rgb(artist.palette[2]), 70), width=2)
+    glow = radial((W, H), (cx, cy), W * 0.9, mix(artist.palette[2], "#000000", 0.55), 0.45)
+    return Image.alpha_composite(Image.alpha_composite(base.convert("RGBA"), layer), glow)
+
+
 def arc_field(artist: Artist, phase: float) -> Image.Image:
     base = vertical_gradient((W, H), [(0, "#08080A"), (0.55, "#14161B"), (1, "#07070A")])
     layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -315,6 +382,7 @@ def arc_field(artist: Artist, phase: float) -> Image.Image:
 
 
 FIELDS = {
+    "crest": crest_field,
     "bandana": bandana_field,
     "chrome": chrome_field,
     "crown": crown_field,
@@ -343,6 +411,17 @@ def wordmark(artist: Artist) -> Image.Image:
     if text.width > W - 90:
         scale = (W - 90) / text.width
         text = text.resize((int(text.width * scale), int(text.height * scale)), Image.LANCZOS)
+    return text
+
+
+def monogram(artist: Artist) -> Image.Image:
+    kind = {"bandana": "impact", "chrome": "black", "crown": "serif",
+            "wire": "black", "arcs": "black"}[artist.motif]
+    initial = artist.name[0]
+    colours = [artist.accent, hexof(mix(artist.accent, artist.palette[2], 0.6)), artist.palette[2]]
+    text = gradient_text(initial, kind, 420, colours)
+    if text.height > 620:
+        text = text.resize((int(text.width * 620 / text.height), 620), Image.LANCZOS)
     return text
 
 
@@ -378,7 +457,7 @@ def decor(canvas: Image.Image, artist: Artist, phase: float) -> Image.Image:
     """
     layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(layer)
-    cx, cy = W // 2, int(H * 0.44)
+    cx, cy = W // 2, int(H * TYPE_Y)
 
     # dashed badge ring, rotating once per loop
     for k in range(48):
@@ -403,7 +482,7 @@ def decor(canvas: Image.Image, artist: Artist, phase: float) -> Image.Image:
 
     # inner frame, the way a printed sleeve has one
     frame = ImageDraw.Draw(canvas)
-    inset = 54
+    inset = 92
     frame.rounded_rectangle((inset, inset, W - inset, H - inset), radius=38,
                             outline=(*artist.accent_rgb, 55), width=3)
 
@@ -421,18 +500,23 @@ def decor(canvas: Image.Image, artist: Artist, phase: float) -> Image.Image:
     return canvas
 
 
-def frame(artist: Artist, variant: str, t: float) -> Image.Image:
+def frame(artist: Artist, variant: str, t: float, design: str = "a") -> Image.Image:
     """One frame. `t` is 0..1 through the loop; the loop must close seamlessly."""
     phase = t
-    field_fn = FIELDS[artist.motif]
+    field_fn = FIELDS["crest"] if design == "b" else FIELDS[artist.motif]
     back = field_fn(artist, phase)
 
     # Oversized background plane + a foreground plane that drifts against it: the
     # two planes are what the caml writer turns into depth travel.
-    zoom = 1.10 if variant == "parallax" else 1.04
+    zoom = 1.10 if variant in ("parallax", "gyro") else 1.04
     if variant == "live":
         # a breathing zoom: the frame pushes in and settles, once per loop
         zoom = 1.05 + 0.035 * math.sin(phase * 2 * math.pi)
+    if variant == "gyro":
+        # the hybrid: overscan deep enough for the depth effect to travel (the
+        # whole point of the gyro cut) *and* a breathe, so the wallpaper moves
+        # on its own as well as under the tilt
+        zoom = 1.13 + 0.025 * math.sin(phase * 2 * math.pi)
     back = back.resize((int(W * zoom), int(H * zoom)), Image.LANCZOS)
     dx = int(math.sin(phase * 2 * math.pi) * 18)
     dy = int(math.cos(phase * 2 * math.pi) * 14)
@@ -440,6 +524,7 @@ def frame(artist: Artist, variant: str, t: float) -> Image.Image:
     canvas.paste(back, (int((W - back.width) / 2) + dx, int((H - back.height) / 2) + dy))
 
     # smoke / dust: a handful of translucent blobs on their own slow orbits
+    smoke_strength = 0.20 if variant == "animated" else (0.16 if variant == "gyro" else 0.11)
     smoke = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     rng = np.random.default_rng(int(hash(artist.slug) % 997) + 7)
     for k in range(4 if artist.motif in ("bandana", "wire") else 3):
@@ -449,25 +534,51 @@ def frame(artist: Artist, variant: str, t: float) -> Image.Image:
         a = phase * 2 * math.pi + k
         blob = radial((W, H), (base_x + math.sin(a) * 60, base_y - (phase * H * 0.12)),
                       rad, mix(artist.accent, "#000000", 0.30),
-                      0.20 if variant == "animated" else 0.11)
+                      smoke_strength)
         smoke = Image.alpha_composite(smoke, blob)
     canvas = Image.alpha_composite(canvas, smoke.filter(ImageFilter.GaussianBlur(24)))
 
     canvas = decor(canvas, artist, phase)
 
+    # a scrim: the pack's darkest colour, pooled behind the type.  Without it
+    # the wordmark sits on whatever the motif happens to be doing underneath.
+    canvas = Image.alpha_composite(
+        canvas,
+        radial((W, H), (W // 2, H * TYPE_Y), W * 0.95,
+               mix(artist.palette[0], "#000000", 0.45), 0.45))
+
     # the type, on the drifting foreground plane
-    mark = wordmark(artist)
-    fg_dx = int(-dx * 1.6) if variant == "parallax" else 0
-    fg_dy = int(-dy * 1.2) if variant == "parallax" else 0
+    mark = monogram(artist) if design == "b" else wordmark(artist)
+    mark = with_shadow(mark)
+    # the gyro physics: the foreground plane drifts against the background in
+    # every motion, but the parallax and gyro cuts lean into it as far as it goes
+    drift = {"parallax": 1.6, "gyro": 1.9, "live": 0.9}.get(variant, 0.0)
+    fg_dx = int(-dx * drift)
+    fg_dy = int(-dy * drift)
     lift = int(math.sin(phase * 2 * math.pi) * 6)
-    paste_centre(canvas, mark, H * 0.46 + fg_dy + lift, W / 2 + fg_dx)
+
+    # The block is laid out from the mark's own bottom edge rather than from a
+    # set of fractions of H: every design and every wordmark has a different
+    # height, and offsets that were tuned against one of them leave the tagline
+    # sitting on the glyphs of another.
+    paste_centre(canvas, mark, H * TYPE_Y + fg_dy + lift, W / 2 + fg_dx)
+    mark_bottom = H * TYPE_Y + fg_dy + lift + mark.height / 2
 
     tag = tagline(artist)
-    paste_centre(canvas, tag, H * 0.46 + mark.height * 0.62 + 60 + fg_dy)
+    tag_y = mark_bottom + 66
+    paste_centre(canvas, tag, tag_y)
+    tag_bottom = tag_y + tag.height / 2
+
+    if design == "b":
+        name = font("mono", 34)
+        nd = ImageDraw.Draw(canvas)
+        box = nd.textbbox((0, 0), artist.name, font=name)
+        nd.text(((W - (box[2] - box[0])) / 2, tag_bottom + 14),
+                artist.name, font=name, fill=(*artist.accent_rgb, 200))
 
     # a hairline rule under the tagline and the pack's own mark
     d = ImageDraw.Draw(canvas)
-    rule_y = int(H * 0.46 + mark.height * 0.62 + 130)
+    rule_y = int(tag_bottom + (58 if design == "b" else 40))
     d.line([(W * 0.18, rule_y), (W * 0.82, rule_y)], fill=(*artist.accent_rgb, 60), width=2)
     small = font("mono", 27)
     caption = artist.note.upper()
@@ -476,7 +587,7 @@ def frame(artist: Artist, variant: str, t: float) -> Image.Image:
         d.text(((W - (box[2] - box[0])) / 2, rule_y + 32), caption, font=small,
                fill=(255, 255, 255, 120))
 
-    if variant in ("animated", "live"):
+    if variant in ("animated", "live", "gyro"):
         # a sweep of light across the frame, once per loop
         sweep_x = int(lerp(-300, W + 300, phase))
         beam = Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -485,7 +596,7 @@ def frame(artist: Artist, variant: str, t: float) -> Image.Image:
             fill=(*artist.accent_rgb, 26))
         canvas = Image.alpha_composite(canvas, beam.filter(ImageFilter.GaussianBlur(40)))
 
-    if variant == "live":
+    if variant in ("live", "gyro"):
         # a glow that breathes with the zoom, so the motion reads even where the
         # art is dark
         pulse = 0.5 - 0.5 * math.cos(phase * 2 * math.pi)
@@ -493,6 +604,17 @@ def frame(artist: Artist, variant: str, t: float) -> Image.Image:
             canvas,
             radial((W, H), (W // 2, int(H * 0.42)), W * 1.1,
                    artist.accent_rgb, 0.10 + 0.16 * pulse))
+
+    # film texture: a leak in one corner, scanlines over everything, and a
+    # slight bloom along the top where the clock sits
+    leak = radial((W, H), (W * (0.12 if artist.slug in ("2pac", "dre") else 0.88), H * 0.16),
+                  W * 0.75, mix(artist.accent, "#FFFFFF", 0.4), 0.10)
+    canvas = Image.alpha_composite(canvas, leak)
+    lines = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    ld = ImageDraw.Draw(lines)
+    for y in range(0, H, 3):
+        ld.line([(0, y), (W, y)], fill=(0, 0, 0, 16))
+    canvas = Image.alpha_composite(canvas, lines)
 
     canvas = vignette(canvas.convert("RGB"), 0.5)
     return grain(canvas, 2.6, seed=int(t * 1000)).convert("RGB")
@@ -502,15 +624,15 @@ def frame(artist: Artist, variant: str, t: float) -> Image.Image:
 # encoding
 
 
-def encode(artist: Artist, variant: str) -> tuple[str, str]:
+def encode(artist: Artist, variant: str, design: str = "a") -> tuple[str, str]:
     os.makedirs(CLIPS, exist_ok=True)
     os.makedirs(THUMBS, exist_ok=True)
-    slug = f"{artist.slug}-{variant}"
+    slug = f"{artist.slug}-b-{variant}" if design == "b" else f"{artist.slug}-{variant}"
     mp4 = os.path.join(CLIPS, slug + ".mp4")
     jpg = os.path.join(THUMBS, slug + ".jpg")
 
-    first = frame(artist, variant, 0.0)
-    first.resize((540, 960), Image.LANCZOS).save(jpg, quality=82, optimize=True)
+    first = frame(artist, variant, 0.0, design)
+    first.resize((540, 1170), Image.LANCZOS).save(jpg, quality=86, optimize=True)
 
     import imageio_ffmpeg
     ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
@@ -518,7 +640,7 @@ def encode(artist: Artist, variant: str) -> tuple[str, str]:
         ffmpeg, "-y", "-loglevel", "error",
         "-f", "rawvideo", "-pix_fmt", "rgb24",
         "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-",
-        "-an", "-c:v", "libx264", "-preset", "faster", "-crf", "26",
+        "-an", "-c:v", "libx264", "-preset", "faster", "-crf", "24",
         "-pix_fmt", "yuv420p", "-profile:v", "high", "-level", "4.2",
         "-movflags", "+faststart", mp4,
     ]
@@ -527,13 +649,18 @@ def encode(artist: Artist, variant: str) -> tuple[str, str]:
         for i in range(FRAMES):
             # the last frame is not a duplicate of the first, so the loop closes
             # on a step rather than a stutter
-            img = frame(artist, variant, i / FRAMES)
+            img = frame(artist, variant, i / FRAMES, design)
             proc.stdin.write(img.tobytes())
     finally:
         proc.stdin.close()
         if proc.wait() != 0:
             raise SystemExit(f"ffmpeg failed for {slug}")
     size = os.path.getsize(mp4)
+    # A killed encoder leaves a file with no moov atom — a few kilobytes of
+    # frames and a name that looks finished. Every clip here is well over 100 kB,
+    # so a small file is a failure to say out loud rather than one to ship.
+    if size < 100_000:
+        raise SystemExit(f"{slug}.mp4 is truncated ({size} bytes); re-run this pack")
     print(f"{slug:24s} {size / 1e6:5.1f} MB  {frames_duration()}")
     return mp4, jpg
 
@@ -548,6 +675,7 @@ def main() -> int:
                         help="write one still per pack instead of encoding")
     parser.add_argument("--only", help="comma-separated slugs")
     parser.add_argument("--variant", help="only this motion (parallax, animated, live)")
+    parser.add_argument("--design", help="only this design (a = wordmark, b = crest)")
     args = parser.parse_args()
 
     wanted = args.only.split(",") if args.only else [a.slug for a in ARTISTS]
@@ -559,10 +687,13 @@ def main() -> int:
             if artist.slug not in wanted:
                 continue
             setup(artist)
-            for variant in artist.variants:
-                img = frame(artist, variant, 0.18)
-                img.resize((540, 960), Image.LANCZOS).save(
-                    os.path.join(out, f"{artist.slug}-{variant}.jpg"), quality=86)
+            for design, variant in [(d, v) for d in ("a", "b") for v in artist.variants]:
+                if design == "b" and variant == "animated":
+                    continue
+                img = frame(artist, variant, 0.18, design)
+                name = f"{artist.slug}-b-{variant}" if design == "b" else f"{artist.slug}-{variant}"
+                img.resize((540, 1170), Image.LANCZOS).save(
+                    os.path.join(out, name + ".jpg"), quality=86)
             print("probed", artist.slug)
         return 0
 
@@ -570,10 +701,15 @@ def main() -> int:
         if artist.slug not in wanted:
             continue
         setup(artist)
-        for variant in artist.variants:
-            if args.variant and variant != args.variant:
-                continue
-            encode(artist, variant)
+        for design in ("a", "b"):
+            for variant in artist.variants:
+                if design == "b" and variant == "animated":
+                    continue
+                if args.variant and variant != args.variant:
+                    continue
+                if args.design and design != args.design:
+                    continue
+                encode(artist, variant, design)
     print("done —", FRAMES, "frames per clip")
     return 0
 

@@ -53,41 +53,9 @@ struct OriginalsShelf: View {
     @State private var status: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 22) {
             ForEach(Originals.artists, id: \.self) { artist in
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 8) {
-                        Text(artist)
-                            .font(.system(size: 16, weight: .semibold))
-                        Text(tag(artist))
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                        Spacer(minLength: 0)
-                    }
-                    .padding(.horizontal, 16)
-
-                    ScrollView(.horizontal) {
-                        HStack(spacing: 12) {
-                            ForEach(Originals.clips.filter { $0.artist == artist }) { clip in
-                                Button { install(clip) } label: { card(clip) }
-                                    .buttonStyle(.plain)
-                            }
-                        }
-                        .padding(.horizontal, 16)
-                    }
-                    .scrollIndicators(.hidden)
-
-                    if let preset = Originals.presets.first(where: { $0.slug == slug(artist) }) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(preset.name).font(.system(size: 13, weight: .semibold))
-                            Text(preset.blurb)
-                                .font(.system(size: 12))
-                                .foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        .padding(.horizontal, 16)
-                    }
-                }
+                artistShelf(artist)
             }
 
             if let status {
@@ -100,8 +68,81 @@ struct OriginalsShelf: View {
         }
     }
 
-    private func slug(_ artist: String) -> String {
-        Originals.clips.first { $0.artist == artist }?.slug ?? ""
+    /// One artist, one design row per design.
+    ///
+    /// The packs ship seven cuts each now — a wordmark set and a crest set — and
+    /// a single uncontrolled row of seven made the second design read as three
+    /// more variations of the first.  Each design gets its own labelled row, so
+    /// the shelf says what it is showing.
+    private func artistShelf(_ artist: String) -> some View {
+        let clips = Originals.clips.filter { $0.artist == artist }
+        var designs: [String] = []
+        var groups: [String: [OriginalClip]] = [:]
+        for clip in clips {
+            if groups[clip.slug] == nil { designs.append(clip.slug) }
+            groups[clip.slug, default: []].append(clip)
+        }
+        let packs = presets(for: artist)
+
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 8) {
+                Text(artist)
+                    .font(.system(size: 16, weight: .semibold))
+                Text(tag(artist))
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+                Text("\(clips.count) wallpapers")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 16)
+
+            ForEach(designs, id: \.self) { slug in
+                VStack(alignment: .leading, spacing: 7) {
+                    Text(designTitle(slug))
+                        .font(.system(size: 11, weight: .semibold))
+                        .textCase(.uppercase)
+                        .foregroundStyle(.tertiary)
+                        .padding(.horizontal, 16)
+
+                    ScrollView(.horizontal) {
+                        HStack(alignment: .top, spacing: 12) {
+                            ForEach(groups[slug] ?? []) { clip in
+                                Button { install(clip) } label: { card(clip) }
+                                    .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                    }
+                    .scrollIndicators(.hidden)
+                }
+            }
+
+            if let first = packs.first {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(packs.count == 1 ? first.name
+                                          : "\(first.name) and \(packs.count - 1) more")
+                        .font(.system(size: 13, weight: .semibold))
+                    Text(first.blurb)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.horizontal, 16)
+            }
+        }
+    }
+
+    private func designTitle(_ slug: String) -> String {
+        slug.hasSuffix("-b") ? "Crest — one initial, ringed" : "Wordmark"
+    }
+
+    /// The presets that belong to an artist: the base slug plus its variations
+    /// (`2pac`, `2pac-night`, `2pac-quiet` …), which is how the slugs are built.
+    private func presets(for artist: String) -> [OriginalPreset] {
+        let base = Originals.clips.first { $0.artist == artist }?.slug ?? ""
+        return Originals.presets.filter { $0.slug == base || $0.slug.hasPrefix(base + "-") }
     }
 
     private func tag(_ artist: String) -> String {
@@ -124,7 +165,7 @@ struct OriginalsShelf: View {
                                        startPoint: .top, endPoint: .bottom)
                     }
                 }
-                .frame(width: 150, height: 256)
+                .frame(width: 150, height: 325)
                 .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: 20, style: .continuous)

@@ -14,6 +14,47 @@ enum PosterBoardCalculationMode: String, CaseIterable, Identifiable {
     var title: String { self == .linear ? "Linear" : "Discrete" }
 }
 
+/// How far the caml's layer overshoots the document.
+///
+/// This is the knob the gyro cuts are about: iOS only parallaxes a layer that is
+/// **larger** than the document it sits in, so a layer scaled to exactly `cover`
+/// renders dead flat no matter how much parallax is baked into the video.
+/// `flat` reproduces the reference's `bounds_scale` of 1.0; the other two give
+/// the depth pass something to travel against.
+enum PosterBoardDepth: String, CaseIterable, Identifiable {
+    case flat
+    case subtle
+    case deep
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .flat: "Flat"
+        case .subtle: "Subtle"
+        case .deep: "Deep"
+        }
+    }
+
+    /// Multiplied into the layer scale, on top of the cover fit.
+    var scale: Double {
+        switch self {
+        case .flat: 1.0
+        case .subtle: 1.10
+        case .deep: 1.22
+        }
+    }
+
+    /// What the option means, for the page's note.
+    var detail: String {
+        switch self {
+        case .flat: "fills the screen exactly; nothing for the depth effect to move"
+        case .subtle: "10 % overscan: a gentle lean"
+        case .deep: "22 % overscan: the full tilt, cropped to match"
+        }
+    }
+}
+
 /// A video wallpaper, as the page has assembled it.
 struct PosterBoardVideoPlan {
     /// The picked video, copied into the app's container.
@@ -28,6 +69,8 @@ struct PosterBoardVideoPlan {
     /// hides the clock.
     var foreground = false
     var calculationMode: PosterBoardCalculationMode = .linear
+    /// Layer overscan: what the depth effect moves against.
+    var depth: PosterBoardDepth = .deep
 
     var name: String { video.lastPathComponent }
 }
@@ -174,7 +217,7 @@ enum PosterBoardVideo {
         let docWidth = screen.width
         let docHeight = screen.height
         let cover = max(Double(docWidth) / Double(width), Double(docHeight) / Double(height))
-        let layerScale = cover * Self.depthScale
+        let layerScale = cover * plan.depth.scale
         let centerX = Double(docWidth) / 2
         let centerY = Double(docHeight) / 2
         // The layer is published by name, and `index.xml` has to name the same
@@ -268,19 +311,6 @@ enum PosterBoardVideo {
         }
         return scenes.first?.screen.bounds
     }
-
-    /// `create_caml`'s `bounds_scale`, kept at the reference's default.
-    ///
-    /// 1.0 is `cover`: the frames exactly fill the document, centred. A value
-    /// above 1 makes the animated layer larger than the document, which is what
-    /// gives the depth pass travel to parallax against — the reference exposes it
-    /// for that, and the Odyssey's `spartanbg` ships bounds 1852x4104 inside a
-    /// 390x844 document. Nothing in this port drives it yet: the page has no
-    /// control for it, and inventing a default that is not the reference's would
-    /// change how every video wallpaper looks on a device that has never run
-    /// one. It is a named constant so the value is one edit away, not a literal
-    /// buried in the geometry.
-    static let depthScale: Double = 1.0
 
     // MARK: - Live photo
 
