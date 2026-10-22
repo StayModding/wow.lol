@@ -2,9 +2,9 @@
 
 This tree is GoldenNugget Mobile (AGPL-3.0) with a new name, a new icon, a
 lavender theme, and — the part the previous IPA could not carry — a **new
-navigation shell**: a brand bar and a horizontally scrolling row of individual
-tabs across the top, instead of a sidebar on a tablet and a burger-with-a-list on
-a phone.
+navigation shell**: a horizontally scrolling row of individual tabs floating along
+the bottom edge, instead of a sidebar on a tablet and a burger-with-a-list on a
+phone.
 
 Everything else is upstream: the same engine, the same protocols, the same
 tweaks. Nothing about what the app *does* to a device changed.
@@ -18,7 +18,7 @@ tweaks. Nothing about what the app *does* to a device changed.
 | Home Screen name (`CFBundleDisplayName`, `CFBundleName`) | GoldenNugget / GoldenNuggetMobile | **wow.lol** |
 | Bundle ID | `com.awesomenull.goldennugget` | **`lol.wow.mobile`** |
 | Name in the UI (home header, setup guide, About) | GoldenNugget | wow.lol |
-| Navigation | `NavigationSplitView` + sidebar (iPad), sheet behind a burger (iPhone) | brand bar + scrolling tab strip, same on both |
+| Navigation | `NavigationSplitView` + sidebar (iPad), sheet behind a burger (iPhone) | scrolling tab dock along the bottom, same on both |
 | Sections on screen at once | 1 (the selected one), 8 behind a dropdown | all 13, one tap away, always visible |
 | Tint / accent | system blue (no accent asset) | `AccentColor` — `#6B4AE6` light, `#A78BFF` dark |
 | App icon | Icon Composer stack (glass over a gold gradient) | `AppIcon.appiconset`, 1024 with light / dark / tinted renditions |
@@ -38,12 +38,17 @@ tweaks. Nothing about what the app *does* to a device changed.
   Home owns the run (Apply, progress, log) and the launch auto-start; swapping it
   out mid-run would drop the progress and re-run the bootstrap. This is the same
   hazard the old shell had, handled one layer down.
-* The strip lives in `.safeAreaInset(edge: .top)` on the `NavigationStack`, so it
-  survives a push inside a tab (PosterBoard → Download Wallpapers) and the page
-  never scrolls under it.
-* A back control leads the brand bar on every tab except Home: it pops the page
-  the tab pushed, or returns to Home when there is nothing to pop. Home draws
-  no control, because there is nothing behind it.
+* The dock lives in `.safeAreaInset(edge: .bottom)` on the `NavigationStack`, so it
+  survives a push inside a tab (PosterBoard → Download Wallpapers). Content
+  scrolls *under* the plate and the inset keeps rows from ending beneath it.
+  It sat along the top in the first build, where it stacked above every page's
+  own title bar and pushed the first row of every page a hand's width down.
+* Exactly one back control per page: a **pushed** page uses the stack's own back
+  button, and a **tab** gets one leading `‹ Home` item in its title bar (the
+  shell's chevron used to sit in the brand bar, above the title bar that already
+  had one).
+* The brand bar (mark, wordmark, `iOS 26.x` pill) belongs to Home alone; every
+  other page is headed by its own title bar.
 * The home page's device line and its connection verdict are one card now — the
   device name, a coloured dot and "Supported!" / "Partially Supported" /
   "Not connected" — instead of a card containing one centred word.
