@@ -73,9 +73,17 @@ struct OriginalPreset: Identifiable, Hashable {
 }
 
 enum Originals {
-    /// Files land in the bundle root, so no `subdirectory:` here.
+    /// The bundle lookup, with the folder spellings as a fallback.
+    ///
+    /// Xcode copies these into the bundle root, which is the first lookup.  The
+    /// other two are there because a build that treats `Originals/Clips` as a
+    /// *folder* reference instead would leave the files one level down, and a
+    /// missing wallpaper should be a wrong path, not missing artwork with no
+    /// explanation.
     static func bundleURL(_ name: String, _ ext: String) -> URL? {
         Bundle.main.url(forResource: name, withExtension: ext)
+            ?? Bundle.main.url(forResource: name, withExtension: ext, subdirectory: "Clips")
+            ?? Bundle.main.url(forResource: name, withExtension: ext, subdirectory: "Thumbs")
     }
 
     static let clips: [OriginalClip] = [
