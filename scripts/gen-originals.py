@@ -407,9 +407,13 @@ def wordmark(artist: Artist) -> Image.Image:
         "arcs": ["#FFFFFF", "#CDD3DC", artist.palette[2]],
     }[artist.motif]
     text = gradient_text(artist.name, kind, size, colours)
-    # squeeze anything wider than the frame
-    if text.width > W - 90:
-        scale = (W - 90) / text.width
+    # Squeeze anything wider than the frame, with a margin wide enough to
+    # survive the deepest depth crop: `deep` shows 82 % of the layer, so ~9 % of
+    # each edge is never on screen.  A wordmark set to W - 90 lost its first and
+    # last letters the moment the phone tilted.
+    limit = W - 260
+    if text.width > limit:
+        scale = limit / text.width
         text = text.resize((int(text.width * scale), int(text.height * scale)), Image.LANCZOS)
     return text
 
