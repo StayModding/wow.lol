@@ -51,7 +51,23 @@ jobs:
       # script is what the local workflow runs, so CI and the host cannot
       # drift apart.
       - name: Build IPA
-        run: ./scripts/build-ipa.sh Release
+        # Tee the build so a failure can be read back.  xcodebuild's exit code on
+        # its own ("Process completed with exit code 65") says nothing about
+        # which line did not compile, and the raw log cannot be fetched without a
+        # token — so the next step turns the interesting lines into annotations.
+        run: |
+          set -o pipefail
+          ./scripts/build-ipa.sh Release 2>&1 | tee "$RUNNER_TEMP/build.log"
+
+      - name: Report build errors
+        if: failure()
+        run: |
+          log="$RUNNER_TEMP/build.log"
+          [ -f "$log" ] || exit 0
+          grep -E "error: |fatal error: " "$log" | head -60 > "$RUNNER_TEMP/errors.txt" || true
+          while IFS= read -r line; do
+            echo "::error::$line"
+          done < "$RUNNER_TEMP/errors.txt"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7.0.1
