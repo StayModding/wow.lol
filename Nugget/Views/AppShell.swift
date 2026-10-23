@@ -1,22 +1,20 @@
 import SwiftUI
 import UIKit
 
-/// The app's shell: a brand bar and a row of tabs across the top, and the
-/// selected page underneath.
+/// The app's shell: six sections along the bottom, the selected page above them,
+/// and that page's siblings named in its own title bar.
 ///
 /// This replaces the two shells that used to live here — a `NavigationSplitView`
-/// with a sidebar on a tablet, and a sheet behind a burger on a phone.  Both of
-/// those hid the app's own sections: on the phone every destination except Home
-/// was two taps away, behind a button that said nothing about what was inside.
-/// A strip of tabs has no such level: every section is one tap away, it is
-/// visible the whole time, and it says what the app can do just by being looked
-/// at.
+/// with a sidebar on a tablet, and a sheet behind a burger on a phone — and then a
+/// single strip of nineteen scrolling tabs, which had the opposite problem: every
+/// screen was in the bar, but the bar had to be dragged to find any of them, so it
+/// was a rail of labels rather than a map of the app.
 ///
-/// The strip is a scrolling row rather than a fixed set of five, because the app
-/// really does have nineteen sections and a `TabView` would have to hide most of
-/// them behind a "More" list — the same dropdown this change is removing, moved
-/// to the bottom of the screen.  A horizontal scroll keeps every tab a first-class
-/// tab; the row follows the selection so the active one is never off screen.
+/// Two levels, six and at most five: six sections that fit across a phone without
+/// scrolling, and the pages of the section you are in, named in the title bar
+/// where the page title would be.  Everything is two taps away and nothing is
+/// hidden behind "More".  The page within a section is a switch, not a push, so a
+/// section is not a stack of screens the user has to back out of.
 ///
 /// The home page is **not** re-created when a tab is picked.  It is the one view
 /// that owns the run (Apply, progress, log) and the launch bootstrap, so it stays
@@ -27,48 +25,60 @@ import UIKit
 /// drop its progress and re-run the auto-start.
 enum AppDestination: String, CaseIterable, Identifiable, Hashable {
     case home
+
     case tweaks
-    case conflicts
     case presets
+    case conflicts
     case community
+
     case posterBoard
-    case wallpaperDownloads
-    case templates
     case statusBar
+    case passcode
+    case templates
+    case wallpaperDownloads
+
     case skipSetup
     case wallet
-    case passcode
     case daemons
     case media
     case files
-    case history
-    case diagnostics
-    case tunnel
-    case log
+
     case pairing
+    case tunnel
+    case diagnostics
+    case history
+    case log
+
     case settings
 
     var id: String { rawValue }
 
-    /// Whether this destination gets a tab of its own in the strip.
+    /// Whether this destination is a **page** — drawn in the shell's body and
+    /// named in the title bar — rather than something a page pushes.
     ///
-    /// The wallpaper downloader is the one that does not.  It is a **sub-page of
-    /// PosterBoard**, not a section of its own: it edits the very selection the
-    /// PosterBoard page shows and the home page's `Apply` delivers, so a second
-    /// entry point to it in the strip is a duplicate tab one level above the page
-    /// that owns it, and the page it duplicates is the one whose contents
-    /// (`Wallpaper packs`) it fills.  `PosterBoardView` pushes it with a
-    /// `NavigationLink` in that section, which is also where the desktop build
-    /// reaches its downloader from (`wallpaper_downloader.py`).
+    /// Two are pushed, not paged, and both for the same reason: they are details
+    /// of a page, not peers of it.  The wallpaper downloader edits the very
+    /// selection `PosterBoardView` shows, and the run log is the detail view of a
+    /// record on **History**.  Pushing them keeps them reachable from the page
+    /// that owns them without giving them a slot that would duplicate it.
+    var isPage: Bool { self != .wallpaperDownloads && self != .log }
+
+    /// The section this page belongs to.
     ///
-    /// The case itself stays — a destination has to exist to be pushed — only its
-    /// tab goes.
-    ///
-    /// `log` is the second: a run log is what the **History** page opens, not a
-    /// section beside it, and the two sitting next to each other in the dock read
-    /// as two answers to the same question.  It is pushed from History's title
-    /// bar and from Settings → Logs.
-    var showsAsTab: Bool { self != .wallpaperDownloads && self != .log }
+    /// Exhaustive by construction: a case added to this enum cannot compile until
+    /// it has been given a home here, so a new screen cannot arrive without a
+    /// place in the bar.  Which pages a section holds — and in what order — is
+    /// read off `allCases`, so this one switch is the whole grouping.
+    var section: AppSection {
+        switch self {
+        case .home: .home
+        case .tweaks, .presets, .conflicts, .community: .tweaks
+        case .posterBoard, .statusBar, .passcode, .templates, .wallpaperDownloads: .look
+        case .skipSetup, .wallet, .daemons, .media, .files: .tools
+        case .pairing, .tunnel, .diagnostics, .history, .log: .device
+        case .settings: .settings
+        }
+    }
 
     /// The page title, used by the navigation bar a **pushed** page draws above
     /// itself (and as the back button's label from one).
@@ -153,6 +163,57 @@ enum AppDestination: String, CaseIterable, Identifiable, Hashable {
     }
 }
 
+/// One slot in the bottom bar: a group of pages that belong together.
+///
+/// This is the shell's second level, and it exists because of arithmetic.  The
+/// app has twenty-one screens.  A bar that draws twenty-one tabs along the bottom
+/// of a phone is either a scrolling strip nobody can see whole — which is what
+/// the last dock was, every section still one tap away but none of them findable
+/// without dragging — or a stock `TabView` that hides thirteen of them behind
+/// "More".  Six sections fit across a phone without scrolling, each named, each
+/// one tap from anywhere; the pages inside a section are named in the title bar
+/// of the page itself, so nothing is more than two taps away and nothing is
+/// behind a word that says nothing.
+///
+/// The split is by what the user is doing, not by how the code is organised:
+/// **Tweaks** is choosing switches, **Look** is making the device look different,
+/// **Tools** is moving files and running one-off jobs, **Device** is what the
+/// tunnel and the record of it say, and Home and Settings are themselves.
+enum AppSection: String, CaseIterable, Identifiable, Hashable {
+    case home
+    case tweaks
+    case look
+    case tools
+    case device
+    case settings
+
+    var id: String { rawValue }
+
+    /// The bar's label: six of these have to fit across the narrowest phone at
+    /// 9 pt, so they are one short word each.
+    var title: String {
+        switch self {
+        case .home: "Home"
+        case .tweaks: "Tweaks"
+        case .look: "Look"
+        case .tools: "Tools"
+        case .device: "Device"
+        case .settings: "Settings"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .home: "house"
+        case .tweaks: "slider.horizontal.3"
+        case .look: "paintpalette"
+        case .tools: "wrench.and.screwdriver"
+        case .device: "iphone"
+        case .settings: "gearshape"
+        }
+    }
+}
+
 /// The app's palette, in one place.
 ///
 /// The accent (`Color.accentColor`, from `Assets.xcassets/AccentColor`) is what
@@ -195,9 +256,15 @@ struct RootView: View {
     /// The selected tab.  There is no second "current" to keep in sync: the strip
     /// and the page both read this one value.
     @State private var selection: AppDestination = .home
-    /// Pushes *within* the selected tab (PosterBoard → Download Wallpapers).
-    /// Switching tabs empties it, so a tab always opens on its own page.
+    /// Pushes *within* the selected section (PosterBoard → Download Wallpapers).
+    /// Switching sections empties it, so a section always opens on a page.
     @State private var path: [AppDestination] = []
+
+    /// The page each section was last left on, so going Home and back to **Look**
+    /// lands on PosterBoard rather than resetting to the section's first page.
+    /// Deliberately *not* persisted: across a launch the app opens on Home, and a
+    /// section entered fresh should start at the top of its own story.
+    @State private var lastPage: [AppSection: AppDestination] = [:]
 
     /// Owned here, above the page, because the selections outlive the page that
     /// edits them: the home page's single Apply delivers what Tweaks, PosterBoard,
@@ -298,27 +365,38 @@ struct RootView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .navigationDestination(for: AppDestination.self) { page($0) }
-            // One title bar, the system's, on every page.  Home declares
-            // "wow.lol" and every other page declares its own name, so the shell
-            // draws nothing above a page at all: the old brand bar was a second
-            // band saying what the title bar underneath already said.
+            // One title bar, the system's, on every page.  It is also the
+            // section's second level: `page(_:)` puts the section's other pages in
+            // its principal slot, so the band above a page names where you are and
+            // what is next to it in one line, and the shell draws nothing above a
+            // page at all — the old brand bar was a second band saying what the
+            // title bar underneath already said.
             .toolbar(.visible, for: .navigationBar)
         }
-        // The tabs are a bar along the bottom, not a row over the page.  Along
-        // the top they were the tallest thing on the screen and every page paid
-        // for them twice: once for the strip, once for the title bar underneath
-        // it, before a single row was visible.  Down here the page keeps the
-        // whole display, the bar floats over content that scrolls *under* it
-        // (the inset stops any row from ending beneath the plate, so nothing is
-        // ever hidden), and a thumb reaches it without moving the hand.
+        // Six sections along the bottom edge.  The last dock scrolled nineteen
+        // chips through this strip: every section was in it, but finding one meant
+        // dragging a rail under your thumb and reading labels as they went past,
+        // and the bar was a navigation *problem* rather than a map.  Six fixed
+        // slots are a map — the same six in the same order every time — and the
+        // pages of a section are named in the title bar of the page you are on,
+        // two taps at most.
         //
-        // Outside the stack, so the tabs survive a push inside one: the wallpaper
-        // downloader is reached from PosterBoard and the dock is still there when
-        // it is open.
+        // It is a bar that owns the bottom edge, not a capsule floating over the
+        // page: the safe-area inset it installs is its own height, so a page's
+        // last row ends above it rather than behind it.
+        //
+        // Outside the stack, so the bar survives a push inside a section: the
+        // wallpaper downloader is reached from PosterBoard and the dock is still
+        // there when it is open.
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            WowTabDock(selection: selection,
-                       destinations: tabs,
-                       select: select)
+            WowSectionDock(selection: selection.section,
+                           sections: sections,
+                           select: select)
+        }
+        // One place records where each section was left, so `select(_:)` has
+        // something to come back to.
+        .onChange(of: selection) { _, newValue in
+            lastPage[newValue.section] = newValue
         }
     }
 
@@ -331,62 +409,70 @@ struct RootView: View {
                          autoImportDisabled: $autoImportDisabled)
     }
 
-    /// The pages that get a tab, in the enum's order, minus the ones this device
+    /// The sections the bar draws: every one that has a page on this device.
+    private var sections: [AppSection] {
+        AppSection.allCases.filter { !pages(in: $0).isEmpty }
+    }
+
+    /// A section's pages, in the enum's own order, minus the ones this device
     /// cannot use.
     ///
-    /// Filtered rather than hardcoded: `allCases` is the enum's own
-    /// exhaustiveness check, so a new destination cannot arrive without a tab
-    /// (or without an explicit `showsAsTab == false`), and the AirLift test keeps
-    /// Wallet and Passcode off a device whose version predicates cannot work.
-    private var tabs: [AppDestination] {
+    /// Filtered rather than listed: `allCases` is the enum's own exhaustiveness
+    /// check, so a destination cannot arrive without a place in a section (the
+    /// `section` switch has to answer for it), and the AirLift test keeps Wallet
+    /// and Passcode off a device whose version predicates cannot work.
+    private func pages(in section: AppSection) -> [AppDestination] {
         AppDestination.allCases.filter { destination in
-            destination.showsAsTab
+            destination.section == section
+                && destination.isPage
                 && (!(destination == .wallet || destination == .passcode)
                     || !AirliftAvailability.isHidden(deviceVersion: device.current.version,
                                                      buildVersion: device.current.buildVersion))
         }
     }
 
-    /// No back control of the shell's own: each page carries exactly one.
+    /// A tap on the bar.
     ///
-    /// A **pushed** page (PosterBoard → Download Wallpapers) is undone by the
-    /// stack's back button, which the title bar already draws — the shell adding
-    /// a second chevron is what used to put two of them side by side.  A **tab**
-    /// is a switch rather than a push, so the stack has nothing behind it and
-    /// draws nothing; `page(_:)` gives those pages one leading item that goes
-    /// back to Home.
+    /// It opens the section on the page it was last left on — a section that
+    /// always reset to its first page would make the bar a way to lose your place
+    /// — and a tap on the section already open only closes whatever it pushed, so
+    /// the bar never moves the page out from under a user who is reading it.
+    private func select(_ section: AppSection) {
+        if !path.isEmpty { path.removeAll() }
+        let candidates = pages(in: section)
+        guard let first = candidates.first else { return }
+        let target = lastPage[section].flatMap { candidates.contains($0) ? $0 : nil } ?? first
+        guard target != selection else { return }
+        withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
+            selection = target
+        }
+    }
 
-    private func select(_ destination: AppDestination) {
-        // A second tap on the tab that is already open means "back to the top of
-        // this section": drop whatever it pushed.
+    /// A tap on one of the section's other pages, from the title bar.
+    private func selectPage(_ destination: AppDestination) {
         if !path.isEmpty { path.removeAll() }
         guard destination != selection else { return }
         withAnimation(.easeInOut(duration: 0.18)) { selection = destination }
     }
 
     /// The page for a destination, plus the one piece of chrome the shell adds to
-    /// it: the way back to Home.
+    /// it: the names of its section's other pages.
     ///
-    /// Attached here rather than drawn over the page, so it sits in the title bar
-    /// beside the page's own actions instead of taking a row of its own, and only
-    /// when the stack has no back button of its own to show (see the note above).
+    /// Those names sit in the title bar's principal slot, which is where the page
+    /// title would be — so the section's pages are named *instead of* repeating the
+    /// page's own name, and the whole second level costs no height at all.  A page
+    /// alone in its section (Home, Settings) and anything **pushed** keeps the
+    /// ordinary title, which is also what gives a pushed page its back button.
     @ViewBuilder
     private func page(_ destination: AppDestination) -> some View {
+        let strip = path.isEmpty ? pages(in: destination.section) : []
         content(destination)
             .toolbar {
-                if path.isEmpty, destination != .home {
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button { select(.home) } label: {
-                            HStack(spacing: 2) {
-                                Image(systemName: "chevron.left")
-                                    .font(.system(size: 15, weight: .semibold))
-                                Text("Home")
-                                    .font(.system(size: 17))
-                            }
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Back to Home")
+                if strip.count > 1 {
+                    ToolbarItem(placement: .principal) {
+                        WowPageStrip(pages: strip,
+                                     selection: destination,
+                                     select: selectPage)
                     }
                 }
             }
@@ -443,66 +529,76 @@ struct RootView: View {
     }
 }
 
-/// The tabs, along the bottom edge.
+/// The bottom bar: one slot per section, six across the width of a phone.
 ///
-/// A strip of symbols rather than a stock `TabView`: this app has nineteen
-/// sections and a stock bar would put most of them behind "More" — the dropdown
-/// the shell exists to remove, moved to the bottom of the screen.  The row
-/// scrolls, keeps the active tab centred, and every section stays a first-class
-/// tab.  It is drawn at 42 pt: icon 15, label 9, and a 34 pt chip whose hit area
-/// is widened to 44 by `contentShape`, so the chrome costs a page as little of
-/// the screen as a tab bar is allowed to.
+/// Six is what the app's structure actually has, and it is also what fits: at
+/// 9 pt a label is under 40 pt wide, so six slots of about 60 pt sit on the
+/// narrowest phone without scrolling, without shrinking, and without a "More".
 ///
-/// The look is the system's: one sheet of material, no per-tab fill, no shadows
-/// under the chips.  The active tab is told apart by tint and weight, the way a
-/// system tab bar does it, instead of by a second colour scheme inside a bar
-/// that is already glass.
-private struct WowTabDock: View {
-    let selection: AppDestination
-    let destinations: [AppDestination]
-    let select: (AppDestination) -> Void
+/// The selected tile is **one view that moves**, not six that blink on and off —
+/// a `matchedGeometryEffect` carries the violet tile from slot to slot, so the eye
+/// follows the selection instead of hunting for where it went.  That is the whole
+/// customisation: no second row of chrome, no per-tab rules, nothing that scrolls
+/// under the thumb.
+///
+/// It is a bar that owns the bottom edge rather than a capsule floating over the
+/// page.  A floating pill is *over* content by construction: the last row of a
+/// list ran up against it and a keyboard shared space with it.  This bar installs
+/// a safe-area inset equal to its own height, so a page's last row ends above it.
+private struct WowSectionDock: View {
+    let selection: AppSection
+    let sections: [AppSection]
+    let select: (AppSection) -> Void
+
+    @Namespace private var tile
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView(.horizontal) {
-                HStack(spacing: 1) {
-                    ForEach(destinations) { destination in
-                        Button { select(destination) } label: {
-                            chip(destination)
-                        }
-                        .buttonStyle(.plain)
-                        .id(destination)
-                        .accessibilityLabel(destination.title)
-                        .accessibilityAddTraits(destination == selection ? .isSelected : [])
-                    }
-                }
-                .padding(.horizontal, 5)
-                .padding(.vertical, 4)
-            }
-            .scrollIndicators(.hidden)
-            .background { plate }
-            // The active tab is never allowed to sit half off screen.  No
-            // animation on the first pass: the row is scrolled to Home before
-            // anyone sees it, so animating it would look like the app scrolling
-            // itself on launch.
-            .onAppear { proxy.scrollTo(selection, anchor: .center) }
-            .onChange(of: selection) { _, newValue in
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    proxy.scrollTo(newValue, anchor: .center)
-                }
+        HStack(spacing: 2) {
+            ForEach(sections) { section in
+                Button { select(section) } label: { slot(section) }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(section.title)
+                    .accessibilityAddTraits(section == selection ? .isSelected : [])
             }
         }
+        .padding(.horizontal, 6)
+        .padding(.top, 4)
+        .padding(.bottom, 2)
+        .background { plate }
+        .animation(.spring(response: 0.34, dampingFraction: 0.84), value: selection)
         .sensoryFeedback(.selection, trigger: selection)
     }
 
-    /// A bar across the bottom edge, not a capsule floating over the page.
-    ///
-    /// It was a floating pill, and a floating pill is *over* content by
-    /// construction: the last row of a list ran up against it, and anything the
-    /// page drew at the bottom — an Apply, a player, a keyboard — shared space
-    /// with it.  The bar now owns the bottom edge outright, its material runs
-    /// into the home-indicator area, and the safe-area inset it installs is its
-    /// own height, so a page's last row ends above it rather than behind it.
+    /// A slot: the icon, the section's one word, and the tile that only the
+    /// selected slot draws.  38 pt of drawing plus 6 of padding, so the bar is
+    /// 44 pt taller than the page is not — the hit area is the full slot
+    /// (`contentShape`), which on six equal columns is already past 44 wide.
+    private func slot(_ section: AppSection) -> some View {
+        let active = section == selection
+        return VStack(spacing: 2) {
+            Image(systemName: section.systemImage)
+                .font(.system(size: 17, weight: active ? .semibold : .regular))
+                .symbolVariant(active ? .fill : .none)
+                .frame(height: 19)
+            Text(section.title)
+                .font(.system(size: 9, weight: active ? .semibold : .medium))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        .foregroundStyle(active ? Color.white : Color.secondary)
+        .frame(maxWidth: .infinity)
+        .frame(height: 38)
+        .background {
+            if active {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(WowBrand.selectedTab)
+                    .shadow(color: WowBrand.violet.opacity(0.32), radius: 7, y: 3)
+                    .matchedGeometryEffect(id: "section", in: tile)
+            }
+        }
+        .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
     private var plate: some View {
         Rectangle()
             .fill(.ultraThinMaterial)
@@ -513,35 +609,70 @@ private struct WowTabDock: View {
             }
             .ignoresSafeArea(edges: .bottom)
     }
+}
 
-    /// A compact chip.
-    ///
-    /// The first dock spent 64 pt of every page on chrome — an icon *and* a label
-    /// at reading size, padded like a toolbar button.  This is the same
-    /// information at the size a tab bar is allowed to take: 42 pt including the
-    /// bar's own padding, so a page keeps the screen it is drawing on.  The hit
-    /// area is kept at 44 pt by `contentShape` rather than by the drawing.
-    private func chip(_ destination: AppDestination) -> some View {
+/// The other pages of the current section, in the title bar.
+///
+/// This is where the one-band layout comes from.  The principal slot of a
+/// navigation bar *is* the page title, so naming the section's pages instead of
+/// the page costs no height at all: the bar that already existed now carries the
+/// page's name and its siblings' names, with the current one filled in.  A section
+/// of one page has nothing to name and keeps the ordinary title.
+///
+/// The strip scrolls, because **Tools** has five pages and a phone at accessibility
+/// text sizes has room for three; it keeps the current page centred so the one you
+/// are on is never the one that is half cut off.
+private struct WowPageStrip: View {
+    let pages: [AppDestination]
+    let selection: AppDestination
+    let select: (AppDestination) -> Void
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal) {
+                HStack(spacing: 4) {
+                    ForEach(pages) { destination in
+                        Button { select(destination) } label: { pill(destination) }
+                            .buttonStyle(.plain)
+                            .id(destination)
+                            .accessibilityLabel(destination.title)
+                            .accessibilityAddTraits(destination == selection ? .isSelected : [])
+                    }
+                }
+                .padding(.vertical, 1)
+            }
+            .scrollIndicators(.hidden)
+            .onAppear { proxy.scrollTo(selection, anchor: .center) }
+            .onChange(of: selection) { _, newValue in
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    proxy.scrollTo(newValue, anchor: .center)
+                }
+            }
+        }
+        .frame(height: 29)
+        .frame(maxWidth: 460)
+        .animation(.easeOut(duration: 0.16), value: selection)
+    }
+
+    private func pill(_ destination: AppDestination) -> some View {
         let active = destination == selection
-        return VStack(spacing: 2) {
+        return HStack(spacing: 4) {
             Image(systemName: destination.systemImage)
-                .font(.system(size: 15, weight: active ? .semibold : .regular))
-                .symbolVariant(active ? .fill : .none)
-                .frame(height: 17)
+                .font(.system(size: 10, weight: .semibold))
             Text(destination.tabTitle)
-                .font(.system(size: 9, weight: active ? .semibold : .medium))
+                .font(.system(size: 12, weight: .semibold))
                 .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .fixedSize()
         }
-        .foregroundStyle(active ? Color.accentColor : Color.secondary)
+        .foregroundStyle(active ? Color.white : Color.secondary)
         .padding(.horizontal, 9)
-        .padding(.vertical, 2)
-        .frame(minWidth: 46, minHeight: 34)
+        .padding(.vertical, 4)
+        .frame(height: 25)
         .background {
-            RoundedRectangle(cornerRadius: 11, style: .continuous)
-                .fill(active ? Color.accentColor.opacity(0.14) : .clear)
+            Capsule(style: .continuous)
+                .fill(active ? AnyShapeStyle(WowBrand.selectedTab)
+                             : AnyShapeStyle(Color.primary.opacity(0.07)))
         }
-        .contentShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
-        .animation(.easeOut(duration: 0.16), value: active)
+        .contentShape(Capsule(style: .continuous))
     }
 }

@@ -102,6 +102,10 @@ struct CommunityCatalogView: View {
             }
         }
         .navigationTitle("Community Catalog")
+        // Inline, like every other page: the shell puts the section's page pills
+        // in the title bar, and a large title under them was a second name for
+        // the page the pills had already named.
+        .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $search)
         .toolbar { Button { Task { await refresh() } } label: { Image(systemName: "arrow.clockwise") }.disabled(loading) }
         .task { if entries.isEmpty { await refresh() } }

@@ -2,9 +2,9 @@
 
 This tree is GoldenNugget Mobile (AGPL-3.0) with a new name, a new icon, a
 lavender theme, and — the part the previous IPA could not carry — a **new
-navigation shell**: a horizontally scrolling row of individual tabs floating along
-the bottom edge, instead of a sidebar on a tablet and a burger-with-a-list on a
-phone.
+navigation shell**: six sections along the bottom edge, each section's pages named
+in the title bar of the page you are on, instead of a sidebar on a tablet and a
+burger-with-a-list on a phone.
 
 Everything else is upstream: the same engine, the same protocols, the same
 tweaks. Nothing about what the app *does* to a device changed.
@@ -18,8 +18,8 @@ tweaks. Nothing about what the app *does* to a device changed.
 | Home Screen name (`CFBundleDisplayName`, `CFBundleName`) | GoldenNugget / GoldenNuggetMobile | **wow.lol** |
 | Bundle ID | `com.awesomenull.goldennugget` | **`lol.wow.mobile`** |
 | Name in the UI (home header, setup guide, About) | GoldenNugget | wow.lol |
-| Navigation | `NavigationSplitView` + sidebar (iPad), sheet behind a burger (iPhone) | scrolling tab dock along the bottom, same on both |
-| Sections on screen at once | 1 (the selected one), 8 behind a dropdown | all 13, one tap away, always visible |
+| Navigation | `NavigationSplitView` + sidebar (iPad), sheet behind a burger (iPhone) | six-section dock along the bottom, same on both |
+| Screens on screen at once | 1 (the selected one), 8 behind a dropdown | 6 sections named in the bar, every page of a section named in its title bar |
 | Tint / accent | system blue (no accent asset) | `AccentColor` — `#6B4AE6` light, `#A78BFF` dark |
 | App icon | Icon Composer stack (glass over a gold gradient) | `AppIcon.appiconset`, 1024 with light / dark / tinted renditions |
 | In-app logo (`Logo@1x/@2x`) | gold nugget | white W on lavender |
@@ -27,12 +27,20 @@ tweaks. Nothing about what the app *does* to a device changed.
 
 ### The shell (`Nugget/Views/AppShell.swift`)
 
-* `AppDestination` keeps its cases, gains `tabTitle` (short label for the strip)
-  and `showsAsTab` (the wallpaper downloader stays a sub-page of PosterBoard).
-  Order, icons, titles and the AirLift filter for Wallet/Passcode are unchanged.
-* `RootView` owns `selection` and one `path` for pushes *inside* a tab. Tapping a
-  tab empties the path, so a tab always opens on its own page; tapping the tab
-  that is already open drops whatever it pushed.
+* `AppDestination` keeps its cases and gains `section` — which section it belongs
+  to, answered exhaustively so a new screen cannot compile without a place in the
+  bar — plus `isPage` (the wallpaper downloader and the run log are pushed, not
+  paged). `tabTitle` is now the label on a section's page pills. Order, icons,
+  titles and the AirLift filter for Wallet/Passcode are unchanged.
+* `AppSection` is the bar: `home`, `tweaks`, `look`, `tools`, `device`,
+  `settings`. Which pages a section holds, and in what order, is read off
+  `AppDestination.allCases`, so the enum's order *is* the pill order and a page
+  cannot be in two sections.
+* `RootView` owns `selection` (a page), `lastPage` (the page each section was last
+  left on) and one `path` for pushes *inside* a section. Tapping a section empties
+  the path and opens that section on the page it was last left on; tapping the
+  section that is already open only drops whatever it pushed, so the bar never
+  moves the page out from under someone reading it.
 * The home page is **not** re-created when a tab changes. It stays in the
   hierarchy — faded out, hit-testing off — and the chosen page is drawn over it.
   Home owns the run (Apply, progress, log) and the launch auto-start; swapping it
@@ -44,9 +52,10 @@ tweaks. Nothing about what the app *does* to a device changed.
   It sat along the top in the first build, where it stacked above every page's
   own title bar and pushed the first row of every page a hand's width down.
 * Exactly one back control per page: a **pushed** page uses the stack's own back
-  button, and a **tab** gets one leading `‹ Home` item in its title bar (the
-  shell's chevron used to sit in the brand bar, above the title bar that already
-  had one).
+  button, and a **section** is a switch rather than a push, so it has nothing to go
+  back to. The `‹ Home` item a tab used to draw is gone: Home is a slot in the bar,
+  always there, and the item was only there because the old strip could scroll Home
+  out of view.
 * No custom header at all: Home's title bar says `wow.lol`, every other page
   names its own section.  (A brand bar of the shell's own sat here for two
   builds; the second pass removed it — see below.)
@@ -117,22 +126,38 @@ The first shell was decoration on top of decoration: a brand bar over a tab
 strip over every page's own title bar.  What is left is the system's own
 furniture plus one bar of the app's:
 
-* **One title bar per page**, drawn by the navigation stack.  Home's says
-  `wow.lol`; the brand bar is gone.
-* **The dock** is a single sheet of `.ultraThinMaterial` with no per-tab fill and
-  no shadows under the chips.  The active tab is tinted and semibold with its
-  symbol filled, the way a system tab bar marks one, and the label sits under the
-  icon instead of beside it.
+* **One title bar per page**, drawn by the navigation stack, and it does two jobs
+  at once: its principal slot holds the current section's other pages as pills, so
+  the band above a page names the page and its siblings in one row instead of the
+  title repeating the pill you already tapped. Home's says `wow.lol`; the brand bar
+  is gone.
+* **The dock** is a single sheet of `.ultraThinMaterial` with six slots, one per
+  section. The selected slot's violet tile is one view that travels between slots
+  (`matchedGeometryEffect`) rather than six fills switching on and off, so the eye
+  follows the selection instead of hunting for it.
 
 ### The dock, and the pages it carries (`Nugget/Views/ToolPages.swift`)
 
-Nineteen tabs, every one of them a page that already had machinery behind it.
+Nineteen pages, every one of them backed by machinery that already existed, in six
+sections:
 
-**The bar is smaller.**  It was 64 pt of chrome on every screen — icon and label
-at reading size, padded like a toolbar button.  It is 42 pt now: 15 pt icon,
-9 pt label, a 34 pt chip whose hit area is widened to 44 by `contentShape`.  The
-page keeps the rest of the display; the inset the bar installs is its own height,
-so the last row of a list still ends above it rather than behind it.
+| Section | Pages |
+|---|---|
+| Home | Home |
+| Tweaks | Tweaks · Presets · Clash (conflicts) · Community |
+| Look | PosterBoard · Status · Passcode · Templates (+ Download Wallpapers, pushed) |
+| Tools | Skip · Wallet · Daemons · Media · Files |
+| Device | Pairing · Tunnel · Diag · History (+ Run Log, pushed) |
+| Settings | Settings |
+
+**Two levels, and only one of them costs height.**  The first dock scrolled
+nineteen chips through 42 pt of every screen; every section was in it, but finding
+one meant dragging a rail under your thumb and reading labels as they went past —
+a rail of labels, not a map. The bar is now six fixed slots, no scrolling: 44 pt,
+with the icon, one word under it, and the selected slot filled. The second level
+does not add a row at all — a section's other pages go in the navigation bar's
+principal slot, which is where the page title would have been, so a page's name
+and its siblings' names occupy the same band.
 
 **Duplicate tabs are gone.**  Three pages were second copies of something the app
 already showed:
@@ -145,7 +170,7 @@ already showed:
   showed (bundle id, section count, the Originals totals, the source link) moved
   into that section, and the tab is gone.
 * **Log** — the run log is the detail view of a record, not a section beside
-  **History**.  It is pushed from History's title bar now (`showsAsTab == false`).
+  **History**.  It is pushed from History's title bar now (`isPage == false`).
 
 The Skip Setup switch also left Settings → Apply for a page of its own, so one
 value has one control.

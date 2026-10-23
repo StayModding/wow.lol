@@ -108,7 +108,8 @@ struct SettingsView: View {
             // The facts the old About tab carried.  It was a tab of its own, which
             // made two screens of the same subject; this is where they belong.
             LabeledContent("Bundle", value: Self.bundleIdentifier)
-            LabeledContent("Sections", value: String(AppDestination.allCases.count))
+            LabeledContent("Sections",
+                           value: "\(AppSection.allCases.count) · \(AppDestination.allCases.count) pages")
             LabeledContent("Originals",
                            value: "\(Originals.clips.count) wallpapers · \(Originals.presets.count) presets")
             if let url = URL(string: "https://github.com/StayModding/wow.lol") {
